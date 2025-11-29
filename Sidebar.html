@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
+      font-size: 14px;
+      padding: 16px;
+      background: #f8f9fa;
+    }
+
+    .section {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 12px;
+      color: #202124;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: #5f6368;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      outline: none;
+      border-color: #1a73e8;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+
+    button:hover {
+      background: #1765cc;
+    }
+
+    button:disabled {
+      background: #dadce0;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #f1f3f4;
+      color: #202124;
+    }
+
+    .btn-secondary:hover {
+      background: #e8eaed;
+    }
+
+    .status {
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .status.success {
+      background: #e6f4ea;
+      color: #137333;
+      border: 1px solid #c6e1c6;
+    }
+
+    .status.error {
+      background: #fce8e6;
+      color: #c5221f;
+      border: 1px solid #f4c7c3;
+    }
+
+    .status.info {
+      background: #e8f0fe;
+      color: #1967d2;
+      border: 1px solid #d2e3fc;
+    }
+
+    .usage {
+      font-size: 12px;
+      color: #5f6368;
+      text-align: center;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      margin-top: 8px;
+    }
+
+    .usage strong {
+      color: #202124;
+    }
+
+    .checkbox-group {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 12px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      padding: 6px;
+      cursor: pointer;
+    }
+
+    .checkbox-item:hover {
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+
+    .checkbox-item input {
+      margin-right: 8px;
+    }
+
+    .checkbox-item label {
+      margin: 0;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .link {
+      color: #1a73e8;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    .link:hover {
+      text-decoration: underline;
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: #5f6368;
+      margin-top: 8px;
+    }
+
+    .divider {
+      height: 1px;
+      background: #dadce0;
+      margin: 16px 0;
+    }
+
+    #loading {
+      text-align: center;
+      color: #5f6368;
+      padding: 20px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Configuration Section -->
+  <div class="section">
+    <h2>⚙️ Configuration</h2>
+
+    <div id="status" class="status"></div>
+
+    <label for="apiKey">API Key</label>
+    <input
+      type="password"
+      id="apiKey"
+      placeholder="Enter your API key"
+    >
+
+    <button onclick="saveApiKey()">Save API Key</button>
+    <button class="btn-secondary" onclick="testConnection()">Test Connection</button>
+
+    <div class="help-text">
+      Don't have an API key?
+      <a href="https://oilpriceapi.com/auth/signup" target="_blank" class="link">Sign up for free</a>
+    </div>
+  </div>
+
+  <!-- Actions Section -->
+  <div class="section">
+    <h2>📊 Actions</h2>
+
+    <button onclick="showFetchPrices()">Fetch Latest Prices</button>
+    <button class="btn-secondary" onclick="convertToMBtu()">Convert to $/MMBtu</button>
+
+    <div id="usageInfo" class="usage"></div>
+  </div>
+
+  <!-- Quick Functions Section -->
+  <div class="section">
+    <h2>⚡ Quick Functions</h2>
+
+    <div class="help-text" style="margin-bottom: 12px;">
+      Use these formulas in any cell:
+    </div>
+
+    <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 12px; margin-bottom: 8px;">
+      =OILPRICE("BRENT_CRUDE_USD")
+    </div>
+
+    <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 12px; margin-bottom: 8px;">
+      =OILPRICE_CONVERT("WTI_USD")
+    </div>
+
+    <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 12px;">
+      =OILPRICE_HISTORY("NATURAL_GAS_USD", 30)
+    </div>
+  </div>
+
+  <!-- Resources Section -->
+  <div class="section">
+    <h2>📚 Resources</h2>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <a href="https://docs.oilpriceapi.com" target="_blank" class="link">📖 Documentation</a>
+      <a href="https://www.oilpriceapi.com/tools/sheets-support" target="_blank" class="link">💬 Support</a>
+      <a href="https://oilpriceapi.com/pricing" target="_blank" class="link">💰 Pricing</a>
+    </div>
+  </div>
+
+  <div id="loading">Loading...</div>
+
+  <script>
+    // Load API key on startup
+    google.script.run
+      .withSuccessHandler(function(apiKey) {
+        if (apiKey) {
+          document.getElementById('apiKey').value = apiKey;
+          loadUserInfo();
+        }
+      })
+      .getApiKey();
+
+    function showStatus(message, type) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.className = 'status ' + type;
+      statusEl.style.display = 'block';
+
+      setTimeout(() => {
+        statusEl.style.display = 'none';
+      }, 5000);
+    }
+
+    function saveApiKey() {
+      const apiKey = document.getElementById('apiKey').value.trim();
+
+      if (!apiKey) {
+        showStatus('Please enter an API key', 'error');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showStatus(result.message, 'success');
+            loadUserInfo();
+          } else {
+            showStatus(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showStatus('Failed to save: ' + error.message, 'error');
+        })
+        .saveApiKey(apiKey);
+    }
+
+    function testConnection() {
+      showStatus('Testing connection...', 'info');
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showStatus(result.message, 'success');
+          } else {
+            showStatus(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showStatus('Connection failed: ' + error.message, 'error');
+        })
+        .testConnection();
+    }
+
+    function loadUserInfo() {
+      google.script.run
+        .withSuccessHandler(function(info) {
+          const usageEl = document.getElementById('usageInfo');
+          if (info.tier !== 'none' && info.tier !== 'unknown') {
+            const percentage = Math.round((info.used / info.limit) * 100);
+            usageEl.innerHTML = `
+              <strong>${info.tier.toUpperCase()}</strong> tier<br>
+              ${info.used.toLocaleString()} / ${info.limit.toLocaleString()} requests (${percentage}%)
+            `;
+            usageEl.style.display = 'block';
+          }
+        })
+        .getUserInfo();
+    }
+
+    function showFetchPrices() {
+      google.script.run.showFetchDialog();
+    }
+
+    function convertToMBtu() {
+      showStatus('Converting to $/MMBtu...', 'info');
+      google.script.run
+        .withSuccessHandler(function() {
+          showStatus('Conversion complete!', 'success');
+        })
+        .withFailureHandler(function(error) {
+          showStatus('Conversion failed: ' + error.message, 'error');
+        })
+        .convertToMBtu();
+    }
+  </script>
+</body>
+</html>

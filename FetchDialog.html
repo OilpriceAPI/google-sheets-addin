@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
+      font-size: 14px;
+      padding: 20px;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: #202124;
+    }
+
+    .commodities {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .commodity-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .commodity-item:hover {
+      background: #f8f9fa;
+    }
+
+    .commodity-item input {
+      margin-right: 10px;
+    }
+
+    .commodity-item label {
+      cursor: pointer;
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .commodity-name {
+      font-weight: 500;
+      color: #202124;
+    }
+
+    .commodity-code {
+      font-size: 12px;
+      color: #5f6368;
+      font-family: monospace;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: #1a73e8;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1765cc;
+    }
+
+    .btn-primary:disabled {
+      background: #dadce0;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #f1f3f4;
+      color: #202124;
+    }
+
+    .btn-secondary:hover {
+      background: #e8eaed;
+    }
+
+    .status {
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .status.success {
+      background: #e6f4ea;
+      color: #137333;
+      border: 1px solid #c6e1c6;
+    }
+
+    .status.error {
+      background: #fce8e6;
+      color: #c5221f;
+      border: 1px solid #f4c7c3;
+    }
+
+    .status.info {
+      background: #e8f0fe;
+      color: #1967d2;
+      border: 1px solid #d2e3fc;
+    }
+
+    .select-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .select-controls button {
+      flex: 1;
+      padding: 8px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h2>📊 Fetch Latest Prices</h2>
+
+  <div id="status" class="status"></div>
+
+  <div class="select-controls">
+    <button class="btn-secondary" onclick="selectAll()">Select All</button>
+    <button class="btn-secondary" onclick="selectNone()">Clear All</button>
+  </div>
+
+  <div class="commodities">
+    <div class="commodity-item">
+      <input type="checkbox" id="BRENT_CRUDE_USD" checked>
+      <label for="BRENT_CRUDE_USD">
+        <span class="commodity-name">Brent Crude Oil</span>
+        <span class="commodity-code">BRENT_CRUDE_USD</span>
+      </label>
+    </div>
+
+    <div class="commodity-item">
+      <input type="checkbox" id="WTI_USD" checked>
+      <label for="WTI_USD">
+        <span class="commodity-name">WTI Crude Oil</span>
+        <span class="commodity-code">WTI_USD</span>
+      </label>
+    </div>
+
+    <div class="commodity-item">
+      <input type="checkbox" id="NATURAL_GAS_USD" checked>
+      <label for="NATURAL_GAS_USD">
+        <span class="commodity-name">Natural Gas (US)</span>
+        <span class="commodity-code">NATURAL_GAS_USD</span>
+      </label>
+    </div>
+
+    <div class="commodity-item">
+      <input type="checkbox" id="NATURAL_GAS_GBP">
+      <label for="NATURAL_GAS_GBP">
+        <span class="commodity-name">Natural Gas (UK)</span>
+        <span class="commodity-code">NATURAL_GAS_GBP</span>
+      </label>
+    </div>
+
+    <div class="commodity-item">
+      <input type="checkbox" id="DUTCH_TTF_EUR">
+      <label for="DUTCH_TTF_EUR">
+        <span class="commodity-name">Dutch TTF Gas</span>
+        <span class="commodity-code">DUTCH_TTF_EUR</span>
+      </label>
+    </div>
+
+    <div class="commodity-item">
+      <input type="checkbox" id="COAL_USD">
+      <label for="COAL_USD">
+        <span class="commodity-name">Coal (Newcastle)</span>
+        <span class="commodity-code">COAL_USD</span>
+      </label>
+    </div>
+
+    <div class="commodity-item">
+      <input type="checkbox" id="HEATING_OIL_USD">
+      <label for="HEATING_OIL_USD">
+        <span class="commodity-name">Heating Oil</span>
+        <span class="commodity-code">HEATING_OIL_USD</span>
+      </label>
+    </div>
+
+    <div class="commodity-item">
+      <input type="checkbox" id="DIESEL_USD">
+      <label for="DIESEL_USD">
+        <span class="commodity-name">Diesel</span>
+        <span class="commodity-code">DIESEL_USD</span>
+      </label>
+    </div>
+
+    <div class="commodity-item">
+      <input type="checkbox" id="GASOLINE_USD">
+      <label for="GASOLINE_USD">
+        <span class="commodity-name">Gasoline</span>
+        <span class="commodity-code">GASOLINE_USD</span>
+      </label>
+    </div>
+
+    <div class="commodity-item">
+      <input type="checkbox" id="JET_FUEL_USD">
+      <label for="JET_FUEL_USD">
+        <span class="commodity-name">Jet Fuel</span>
+        <span class="commodity-code">JET_FUEL_USD</span>
+      </label>
+    </div>
+
+    <div class="commodity-item">
+      <input type="checkbox" id="PROPANE_USD">
+      <label for="PROPANE_USD">
+        <span class="commodity-name">Propane</span>
+        <span class="commodity-code">PROPANE_USD</span>
+      </label>
+    </div>
+
+    <div class="commodity-item">
+      <input type="checkbox" id="URANIUM_USD">
+      <label for="URANIUM_USD">
+        <span class="commodity-name">Uranium</span>
+        <span class="commodity-code">URANIUM_USD</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-secondary" onclick="google.script.host.close()">Cancel</button>
+    <button class="btn-primary" id="fetchBtn" onclick="fetchPrices()">Fetch Prices</button>
+  </div>
+
+  <script>
+    function showStatus(message, type) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.className = 'status ' + type;
+      statusEl.style.display = 'block';
+
+      if (type === 'success') {
+        setTimeout(() => {
+          google.script.host.close();
+        }, 1500);
+      }
+    }
+
+    function selectAll() {
+      document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.checked = true;
+      });
+    }
+
+    function selectNone() {
+      document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+      });
+    }
+
+    function getSelectedCommodities() {
+      const selected = [];
+      document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+        selected.push(cb.id);
+      });
+      return selected;
+    }
+
+    function fetchPrices() {
+      const selected = getSelectedCommodities();
+
+      if (selected.length === 0) {
+        showStatus('Please select at least one commodity', 'error');
+        return;
+      }
+
+      const fetchBtn = document.getElementById('fetchBtn');
+      fetchBtn.disabled = true;
+      fetchBtn.textContent = 'Fetching...';
+
+      showStatus(`Fetching ${selected.length} commodities...`, 'info');
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showStatus(`✓ Successfully fetched ${result.count} prices`, 'success');
+        })
+        .withFailureHandler(function(error) {
+          showStatus('Failed: ' + error.message, 'error');
+          fetchBtn.disabled = false;
+          fetchBtn.textContent = 'Fetch Prices';
+        })
+        .fetchLatestPrices(selected);
+    }
+  </script>
+</body>
+</html>

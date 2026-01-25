@@ -46,6 +46,8 @@ function onOpen() {
     .addItem('Fetch Latest Prices', 'showFetchDialog')
     .addItem('Convert to $/MMBtu', 'convertToMBtu')
     .addSeparator()
+    .addItem('Fetch Bunker Prices (Data Connector)', 'fetchDataConnectorPrices')
+    .addSeparator()
     .addItem('About', 'showAbout')
     .addToUi();
 }
@@ -508,4 +510,208 @@ function showFetchDialog() {
     .setWidth(400)
     .setHeight(500);
   SpreadsheetApp.getUi().showModalDialog(html, 'Fetch Latest Prices');
+}
+
+// ============================================================================
+// DATA CONNECTOR (BYOS) - Bunker Fuel Prices
+// ============================================================================
+
+/**
+ * Fetch bunker fuel prices from Data Connector (BYOS)
+ * Requires Data Connector feature enabled on your organization
+ */
+function fetchDataConnectorPrices() {
+  const apiKey = getApiKey();
+
+  if (!apiKey) {
+    SpreadsheetApp.getUi().alert('No API key configured. Please set your API key first.');
+    return;
+  }
+
+  try {
+    const url = `${API_BASE_URL}/prices/data-connector`;
+    const options = {
+      method: 'get',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const statusCode = response.getResponseCode();
+
+    if (statusCode === 403) {
+      SpreadsheetApp.getUi().alert(
+        'Data Connector not enabled',
+        'Your organization does not have Data Connector enabled.\n\n' +
+        'Contact sales@oilpriceapi.com to enable this feature.',
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+
+    if (statusCode !== 200) {
+      throw new Error(`API request failed: HTTP ${statusCode}`);
+    }
+
+    const data = JSON.parse(response.getContentText());
+    const prices = data.data?.prices || [];
+
+    if (prices.length === 0) {
+      SpreadsheetApp.getUi().alert('No bunker prices found. Check your Data Connector configuration.');
+      return;
+    }
+
+    // Write to Bunker Prices sheet
+    writeToDataConnectorSheet(prices);
+
+    SpreadsheetApp.getUi().alert(`Fetched ${prices.length} bunker fuel prices.`);
+  } catch (error) {
+    SpreadsheetApp.getUi().alert(`Failed to fetch bunker prices: ${error.message}`);
+  }
+}
+
+/**
+ * Write Data Connector prices to Bunker Prices sheet
+ */
+function writeToDataConnectorSheet(prices) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Bunker Prices');
+
+  // Create sheet if doesn't exist
+  if (!sheet) {
+    sheet = ss.insertSheet('Bunker Prices');
+  }
+
+  // Clear existing data
+  sheet.clear();
+
+  // Add headers
+  const headers = [['Port', 'Fuel Type', 'Price', 'Currency', 'Unit', 'Region', 'Source', 'Timestamp', 'Last Updated']];
+  sheet.getRange(1, 1, 1, 9).setValues(headers);
+  sheet.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#e8f5e9');  // Light green for marine theme
+
+  // Add data rows
+  const rows = prices.map(p => [
+    p.port,
+    p.fuel_type,
+    p.price,
+    p.currency,
+    p.unit,
+    p.region || '',
+    p.source,
+    p.timestamp,
+    new Date().toISOString()
+  ]);
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, 9).setValues(rows);
+
+    // Format price column as currency
+    sheet.getRange(2, 3, rows.length, 1).setNumberFormat('$#,##0.00');
+  }
+
+  // Auto-resize columns
+  sheet.autoResizeColumns(1, 9);
+
+  // Activate the sheet
+  sheet.activate();
+}
+
+/**
+ * Custom function: Get bunker fuel price for a port
+ * @param {string} port The port name (e.g., "SINGAPORE", "ROTTERDAM")
+ * @param {string} fuelType The fuel type (e.g., "VLSFO", "MGO", "IFO380")
+ * @return {number} The latest bunker price in USD/MT
+ * @customfunction
+ */
+function BUNKER_PRICE(port, fuelType) {
+  if (!port) {
+    throw new Error('Port is required');
+  }
+  if (!fuelType) {
+    throw new Error('Fuel type is required (VLSFO, MGO, or IFO380)');
+  }
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('API key not configured. Use OilPriceAPI menu to configure.');
+  }
+
+  try {
+    const url = `${API_BASE_URL}/prices/data-connector?port=${encodeURIComponent(port.toUpperCase())}&fuel_type=${encodeURIComponent(fuelType.toUpperCase())}`;
+    const options = {
+      method: 'get',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const statusCode = response.getResponseCode();
+
+    if (statusCode === 403) {
+      throw new Error('Data Connector not enabled for your organization');
+    }
+
+    const data = JSON.parse(response.getContentText());
+    const prices = data.data?.prices || [];
+
+    if (prices.length === 0) {
+      throw new Error(`No price found for ${fuelType} at ${port}`);
+    }
+
+    return prices[0].price;
+  } catch (error) {
+    throw new Error(`Failed to fetch bunker price: ${error.message}`);
+  }
+}
+
+/**
+ * Custom function: Get all bunker prices for a port
+ * Returns array with fuel type and price for all fuel grades
+ * @param {string} port The port name (e.g., "SINGAPORE")
+ * @return {Array} Array of [fuel_type, price] pairs
+ * @customfunction
+ */
+function BUNKER_PORT_PRICES(port) {
+  if (!port) {
+    throw new Error('Port is required');
+  }
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('API key not configured');
+  }
+
+  try {
+    const url = `${API_BASE_URL}/prices/data-connector?port=${encodeURIComponent(port.toUpperCase())}`;
+    const options = {
+      method: 'get',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const data = JSON.parse(response.getContentText());
+    const prices = data.data?.prices || [];
+
+    if (prices.length === 0) {
+      return [['No prices found']];
+    }
+
+    // Return header + prices
+    return [['Fuel Type', 'Price (USD/MT)']].concat(
+      prices.map(p => [p.fuel_type, p.price])
+    );
+  } catch (error) {
+    throw new Error(`Failed to fetch: ${error.message}`);
+  }
 }

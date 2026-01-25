@@ -156,7 +156,7 @@ google-sheets-energy-addin/
    - Click to test all features again
 
 3. **Test with Different API Keys:**
-   - Free tier key (1,000 requests/month)
+   - Free tier key (100 requests (lifetime))
    - Paid tier key (historical data access)
    - Verify tier detection works
 
@@ -222,7 +222,7 @@ google-sheets-energy-addin/
      - Financial researchers
      - Market analysts
 
-     Free tier: 1,000 requests/month
+     Free tier: 100 requests (lifetime)
      No credit card required to start
      ```
 

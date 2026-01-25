@@ -28,7 +28,7 @@ This Google Sheets add-on brings live commodity prices to your spreadsheets:
 - Usage tracking
 
 ### Tier Detection
-- Free: 1,000 requests/month
+- Free: 100 requests (lifetime)
 - Exploration: 10,000 requests/month + historical data
 - Production+: Higher limits + webhooks
 
@@ -89,7 +89,7 @@ In any cell, type:
 ## 💰 Pricing
 
 **Free Tier:**
-- 1,000 requests/month
+- 100 requests (lifetime)
 - Real-time prices
 - 20+ commodities
 - Custom functions
@@ -191,7 +191,7 @@ A3: Total Cost      | B3: =B1*B2
 - **20+ Commodities**: Brent, WTI, Natural Gas, Coal, and more
 - **20 Years of Data**: Daily historical prices since 2005
 - **Production-Ready**: Used by analysts, traders, and developers worldwide
-- **Free Tier**: 1,000 requests/month, no credit card required
+- **Free Tier**: 100 requests (lifetime), no credit card required
 
 ## 📝 License
 

@@ -47,6 +47,8 @@ function onOpen() {
     .addItem('Convert to $/MMBtu', 'convertToMBtu')
     .addSeparator()
     .addItem('Fetch Bunker Prices (Data Connector)', 'fetchDataConnectorPrices')
+    .addItem('Fetch Futures Data', 'showFuturesInfo')
+    .addItem('Fetch Rig Counts', 'showRigCountInfo')
     .addSeparator()
     .addItem('About', 'showAbout')
     .addToUi();
@@ -402,6 +404,14 @@ function OILPRICE(commodityCode) {
     throw new Error('API key not configured. Use OilPriceAPI menu to configure.');
   }
 
+  // Check cache first
+  const cache = CacheService.getUserCache();
+  const cacheKey = 'price_' + commodityCode;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return parseFloat(cached);
+  }
+
   try {
     const url = `${API_BASE_URL}/prices/latest?by_code=${commodityCode}`;
     const options = {
@@ -417,7 +427,10 @@ function OILPRICE(commodityCode) {
     const data = JSON.parse(response.getContentText());
 
     if (data.data && data.data.prices && data.data.prices.length > 0) {
-      return data.data.prices[0].price;
+      const price = data.data.prices[0].price;
+      // Cache for 5 minutes (live data)
+      cache.put(cacheKey, price.toString(), 300);
+      return price;
     }
 
     throw new Error('No price data found');
@@ -445,8 +458,26 @@ function OILPRICE_HISTORY(commodityCode, days) {
 
   days = days || 30;
 
+  // Check cache first
+  const cache = CacheService.getUserCache();
+  const cacheKey = 'history_' + commodityCode + '_' + days;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
   try {
-    const url = `${API_BASE_URL}/prices/past_day?by_code=${commodityCode}&days=${days}`;
+    let endpoint;
+    if (days <= 1) {
+      endpoint = 'past_day';
+    } else if (days <= 7) {
+      endpoint = 'past_week';
+    } else if (days <= 30) {
+      endpoint = 'past_month';
+    } else {
+      endpoint = 'past_year';
+    }
+    const url = `${API_BASE_URL}/prices/${endpoint}?by_code=${commodityCode}`;
     const options = {
       method: 'get',
       headers: {
@@ -460,7 +491,10 @@ function OILPRICE_HISTORY(commodityCode, days) {
     const data = JSON.parse(response.getContentText());
 
     if (data.data && data.data.prices) {
-      return data.data.prices.map(p => [p.created_at, p.price]);
+      const result = data.data.prices.map(p => [p.created_at, p.price]);
+      // Cache for 1 hour
+      cache.put(cacheKey, JSON.stringify(result), 3600);
+      return result;
     }
 
     throw new Error('No price data found');
@@ -714,4 +748,242 @@ function BUNKER_PORT_PRICES(port) {
   } catch (error) {
     throw new Error(`Failed to fetch: ${error.message}`);
   }
+}
+
+// ============================================================================
+// FUTURES DATA
+// ============================================================================
+
+/**
+ * Custom function: Get latest futures price for a contract
+ * @param {string} contract The futures contract code ("BZ" for Brent, "CL" for WTI)
+ * @return {number} The front-month futures price
+ * @customfunction
+ */
+function FUTURES_PRICE(contract) {
+  if (!contract) {
+    throw new Error('Contract code is required (BZ for Brent, CL for WTI)');
+  }
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('API key not configured. Use OilPriceAPI menu to configure.');
+  }
+
+  // Check cache first
+  const cache = CacheService.getUserCache();
+  const cacheKey = 'futures_price_' + contract.toUpperCase();
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return parseFloat(cached);
+  }
+
+  try {
+    const url = `${API_BASE_URL}/futures/latest?contract=${encodeURIComponent(contract.toUpperCase())}`;
+    const options = {
+      method: 'get',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const statusCode = response.getResponseCode();
+
+    if (statusCode !== 200) {
+      throw new Error(`API request failed: HTTP ${statusCode}`);
+    }
+
+    const data = JSON.parse(response.getContentText());
+
+    if (data.data && data.data.contracts && data.data.contracts.length > 0) {
+      const price = data.data.contracts[0].price;
+      // Cache for 5 minutes (matches spot price TTL)
+      cache.put(cacheKey, price.toString(), 300);
+      return price;
+    }
+
+    throw new Error('No futures data found');
+  } catch (error) {
+    throw new Error(`Failed to fetch futures price: ${error.message}`);
+  }
+}
+
+/**
+ * Custom function: Get futures forward curve
+ * Returns array of contract months and prices
+ * @param {string} contract The futures contract code ("BZ" for Brent, "CL" for WTI)
+ * @return {Array} Array of [month, price, change] rows
+ * @customfunction
+ */
+function FUTURES_CURVE(contract) {
+  if (!contract) {
+    throw new Error('Contract code is required (BZ for Brent, CL for WTI)');
+  }
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('API key not configured. Use OilPriceAPI menu to configure.');
+  }
+
+  // Check cache first
+  const cache = CacheService.getUserCache();
+  const cacheKey = 'futures_curve_' + contract.toUpperCase();
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
+  try {
+    const url = `${API_BASE_URL}/futures/curve?contract=${encodeURIComponent(contract.toUpperCase())}`;
+    const options = {
+      method: 'get',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const statusCode = response.getResponseCode();
+
+    if (statusCode !== 200) {
+      throw new Error(`API request failed: HTTP ${statusCode}`);
+    }
+
+    const data = JSON.parse(response.getContentText());
+
+    if (data.data && data.data.contracts && data.data.contracts.length > 0) {
+      const result = [['Month', 'Price', 'Change']];
+      data.data.contracts.forEach(c => {
+        result.push([
+          c.month,
+          c.price,
+          c.change !== undefined ? c.change : ''
+        ]);
+      });
+
+      // Cache for 5 minutes (matches spot price TTL)
+      cache.put(cacheKey, JSON.stringify(result), 300);
+      return result;
+    }
+
+    throw new Error('No futures curve data found');
+  } catch (error) {
+    throw new Error(`Failed to fetch futures curve: ${error.message}`);
+  }
+}
+
+/**
+ * Show futures info dialog
+ */
+function showFuturesInfo() {
+  const ui = SpreadsheetApp.getUi();
+  ui.alert(
+    'Futures Data Functions',
+    'Use these custom functions in your spreadsheet:\n\n' +
+    '=FUTURES_PRICE("BZ")\n  Get Brent front-month futures price\n\n' +
+    '=FUTURES_PRICE("CL")\n  Get WTI front-month futures price\n\n' +
+    '=FUTURES_CURVE("BZ")\n  Get full Brent forward curve\n\n' +
+    'Note: Requires Reservoir Mastery subscription.',
+    ui.ButtonSet.OK
+  );
+}
+
+// ============================================================================
+// RIG COUNT DATA
+// ============================================================================
+
+/**
+ * Custom function: Get latest rig count data
+ * @param {string} type The rig type to return: "oil", "gas", "total", or "all"
+ * @return {number|Array} Rig count number, or array if type is "all"
+ * @customfunction
+ */
+function RIG_COUNT(type) {
+  type = (type || 'total').toLowerCase();
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('API key not configured. Use OilPriceAPI menu to configure.');
+  }
+
+  // Check cache first
+  const cache = CacheService.getUserCache();
+  const cacheKey = 'rig_count_data';
+  const cached = cache.get(cacheKey);
+  let rigData;
+
+  if (cached) {
+    rigData = JSON.parse(cached);
+  } else {
+    try {
+      const url = `${API_BASE_URL}/rig-counts/latest`;
+      const options = {
+        method: 'get',
+        headers: {
+          'Authorization': `Token ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        muteHttpExceptions: true
+      };
+
+      const response = UrlFetchApp.fetch(url, options);
+      const statusCode = response.getResponseCode();
+
+      if (statusCode !== 200) {
+        throw new Error(`API request failed: HTTP ${statusCode}`);
+      }
+
+      const data = JSON.parse(response.getContentText());
+
+      if (!data.data) {
+        throw new Error('No rig count data found');
+      }
+
+      rigData = data.data;
+      // Cache for 1 hour
+      cache.put(cacheKey, JSON.stringify(rigData), 3600);
+    } catch (error) {
+      throw new Error(`Failed to fetch rig counts: ${error.message}`);
+    }
+  }
+
+  switch (type) {
+    case 'oil':
+      return rigData.oil;
+    case 'gas':
+      return rigData.gas;
+    case 'total':
+      return rigData.total;
+    case 'all':
+      return [
+        ['Type', 'Count'],
+        ['Oil', rigData.oil],
+        ['Gas', rigData.gas],
+        ['Total', rigData.total],
+        ['Date', rigData.date]
+      ];
+    default:
+      throw new Error('Invalid type. Use "oil", "gas", "total", or "all"');
+  }
+}
+
+/**
+ * Show rig count info dialog
+ */
+function showRigCountInfo() {
+  const ui = SpreadsheetApp.getUi();
+  ui.alert(
+    'Rig Count Functions',
+    'Use these custom functions in your spreadsheet:\n\n' +
+    '=RIG_COUNT("oil")\n  Get oil rig count\n\n' +
+    '=RIG_COUNT("gas")\n  Get gas rig count\n\n' +
+    '=RIG_COUNT("total")\n  Get total rig count\n\n' +
+    '=RIG_COUNT("all")\n  Get full rig count breakdown',
+    ui.ButtonSet.OK
+  );
 }

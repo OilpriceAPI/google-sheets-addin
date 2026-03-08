@@ -5,6 +5,7 @@
 ## 🎯 Overview
 
 This Google Sheets add-on brings live commodity prices to your spreadsheets:
+
 - **Custom Functions**: `=OILPRICE("BRENT_CRUDE_USD")`
 - **Sidebar UI**: Fetch and manage prices easily
 - **Auto-Convert**: Standardize all prices to $/MMBtu
@@ -13,6 +14,7 @@ This Google Sheets add-on brings live commodity prices to your spreadsheets:
 ## 📦 Features
 
 ### Custom Functions
+
 ```javascript
 =OILPRICE("BRENT_CRUDE_USD")           // Returns latest Brent Crude price
 =OILPRICE_HISTORY("WTI_USD", 30)       // Returns 30 days of WTI data
@@ -20,6 +22,7 @@ This Google Sheets add-on brings live commodity prices to your spreadsheets:
 ```
 
 ### Sidebar Features
+
 - API key management
 - Commodity selection (20+ commodities)
 - Fetch latest prices
@@ -28,6 +31,7 @@ This Google Sheets add-on brings live commodity prices to your spreadsheets:
 - Usage tracking
 
 ### Tier Detection
+
 - Free: 100 requests (lifetime)
 - Exploration: 10,000 requests/month + historical data
 - Production+: Higher limits + webhooks
@@ -35,12 +39,14 @@ This Google Sheets add-on brings live commodity prices to your spreadsheets:
 ## 🚀 Installation
 
 ### From Google Workspace Marketplace (Coming Soon)
+
 1. Open any Google Sheet
 2. Extensions → Add-ons → Get add-ons
 3. Search "OilPriceAPI Energy Prices"
 4. Click Install
 
 ### For Development
+
 1. Open Google Sheets
 2. Extensions → Apps Script
 3. Copy code from `Code.gs` and `Sidebar.html`
@@ -49,20 +55,25 @@ This Google Sheets add-on brings live commodity prices to your spreadsheets:
 ## 📖 Quick Start
 
 ### Step 1: Get API Key
-Visit https://oilpriceapi.com/auth/signup to get your free API key.
+
+Visit https://www.oilpriceapi.com/signup?utm_source=google_sheets&utm_medium=addin&utm_campaign=readme to get your free API key.
 
 ### Step 2: Open Add-on
+
 1. Extensions → OilPriceAPI → Configure
 2. Enter your API key
 3. Click Save
 
 ### Step 3: Use Custom Functions
+
 In any cell, type:
+
 ```
 =OILPRICE("BRENT_CRUDE_USD")
 ```
 
 ### Step 4: Fetch Multiple Prices
+
 1. Extensions → OilPriceAPI → Fetch Prices
 2. Select commodities
 3. Click Fetch
@@ -71,6 +82,7 @@ In any cell, type:
 ## 🎨 Example Dashboards
 
 ### Energy Price Comparison
+
 ```
 | Commodity       | Latest Price | $/MMBtu  | 30-Day Change |
 |-----------------|--------------|----------|---------------|
@@ -81,6 +93,7 @@ In any cell, type:
 ```
 
 ### Historical Price Chart
+
 1. Fetch past year data
 2. Insert → Chart
 3. Select date and price columns
@@ -89,28 +102,32 @@ In any cell, type:
 ## 💰 Pricing
 
 **Free Tier:**
+
 - 100 requests (lifetime)
 - Real-time prices
 - 20+ commodities
 - Custom functions
 
 **Exploration ($15/mo):**
+
 - 10,000 requests/month
 - Historical data access
 - Pandas integration (Python SDK)
 - Email support
 
 **Production ($45/mo):**
+
 - 50,000 requests/month
 - Webhooks
 - Priority support
 - 99.9% uptime SLA
 
-[View Full Pricing](https://oilpriceapi.com/pricing)
+[View Full Pricing](https://www.oilpriceapi.com/pricing?utm_source=google_sheets&utm_medium=addin&utm_campaign=pricing)
 
 ## 🛠️ Development
 
 ### Project Structure
+
 ```
 google-sheets-energy-addin/
 ├── Code.gs              # Main Apps Script code
@@ -122,12 +139,14 @@ google-sheets-energy-addin/
 ```
 
 ### Testing Locally
+
 1. Open Google Apps Script editor
 2. Make changes to Code.gs or Sidebar.html
 3. Click Run → test function
 4. Debug in Apps Script console
 
 ### Deployment
+
 1. Click Deploy → New deployment
 2. Type: Add-on
 3. Description: Version X.X.X
@@ -155,6 +174,7 @@ google-sheets-energy-addin/
 ## 📞 Support
 
 **Having issues?**
+
 - Email: support@oilpriceapi.com
 - GitHub Issues: https://github.com/OilpriceAPI/google-sheets-addin/issues
 - Documentation: https://www.oilpriceapi.com/tools/sheets-support
@@ -162,6 +182,7 @@ google-sheets-energy-addin/
 ## 🎓 Examples
 
 ### Example 1: Build a Price Dashboard
+
 1. Create new sheet named "Dashboard"
 2. Add formulas:
    ```
@@ -173,12 +194,14 @@ google-sheets-energy-addin/
 4. Add conditional formatting for price changes
 
 ### Example 2: Historical Analysis
+
 1. Extensions → OilPriceAPI → Fetch Historical
 2. Select "Brent Crude" and "Past Year"
 3. Data appears in "Historical" sheet
 4. Create line chart to visualize trends
 
 ### Example 3: Energy Cost Calculator
+
 ```
 A1: Commodity       | B1: =OILPRICE("NATURAL_GAS_USD")
 A2: Volume (MMBtu)  | B2: 1000
@@ -200,6 +223,7 @@ MIT License - See LICENSE file for details
 ## 🚀 Contributing
 
 Contributions welcome! Please:
+
 1. Fork the repository
 2. Create feature branch
 3. Submit pull request
@@ -214,4 +238,4 @@ Contributions welcome! Please:
 
 **Built with ❤️ by OilPriceAPI**
 
-[Website](https://oilpriceapi.com) • [Pricing](https://oilpriceapi.com/pricing) • [Docs](https://docs.oilpriceapi.com) • [Support](mailto:support@oilpriceapi.com)
+[Website](https://www.oilpriceapi.com) • [Pricing](https://www.oilpriceapi.com/pricing?utm_source=google_sheets&utm_medium=addin&utm_campaign=pricing) • [Docs](https://docs.oilpriceapi.com) • [Support](mailto:support@oilpriceapi.com)

@@ -1,359 +1,287 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <base target="_top" />
+    <meta charset="utf-8" />
     <style>
       * {
-        margin: 0;
-        padding: 0;
         box-sizing: border-box;
       }
 
       body {
-        font-family: "Google Sans", "Roboto", Arial, sans-serif;
-        font-size: 14px;
+        margin: 0;
         padding: 16px;
-        background: #f8f9fa;
+        color: #202124;
+        font: 14px/1.45 Arial, sans-serif;
+        background: #fff;
       }
 
-      .section {
-        background: white;
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 16px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      h1 {
+        margin: 0 0 4px;
+        font-size: 18px;
+        letter-spacing: 0;
       }
 
       h2 {
-        font-size: 18px;
-        font-weight: 500;
-        margin-bottom: 12px;
-        color: #202124;
+        margin: 0 0 10px;
+        font-size: 14px;
+        letter-spacing: 0;
+      }
+
+      .subtle {
+        color: #5f6368;
+        font-size: 12px;
+      }
+
+      .notice {
+        margin: 12px 0;
+        padding: 10px;
+        border-left: 3px solid #1a73e8;
+        background: #f8f9fa;
+        font-size: 12px;
+      }
+
+      .section {
+        padding: 16px 0;
+        border-top: 1px solid #dadce0;
       }
 
       label {
         display: block;
-        font-size: 13px;
-        color: #5f6368;
         margin-bottom: 6px;
+        color: #3c4043;
+        font-size: 12px;
+        font-weight: 600;
       }
 
-      input[type="text"],
-      input[type="password"] {
+      input {
         width: 100%;
-        padding: 10px;
-        border: 1px solid #dadce0;
+        height: 38px;
+        padding: 8px 10px;
+        border: 1px solid #bdc1c6;
         border-radius: 4px;
-        font-size: 14px;
-        margin-bottom: 12px;
+        font: inherit;
       }
 
-      input[type="text"]:focus,
-      input[type="password"]:focus {
-        outline: none;
+      input:focus {
+        outline: 2px solid #d2e3fc;
         border-color: #1a73e8;
       }
 
-      button {
-        width: 100%;
-        padding: 10px;
-        background: #1a73e8;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        margin-bottom: 8px;
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 8px;
       }
 
-      button:hover {
-        background: #1765cc;
+      button {
+        min-height: 36px;
+        padding: 8px 10px;
+        border: 1px solid #1a73e8;
+        border-radius: 4px;
+        color: #fff;
+        background: #1a73e8;
+        font: 600 13px Arial, sans-serif;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        border-color: #dadce0;
+        color: #1a73e8;
+        background: #fff;
+      }
+
+      button.danger {
+        border-color: #dadce0;
+        color: #b3261e;
+        background: #fff;
       }
 
       button:disabled {
-        background: #dadce0;
-        cursor: not-allowed;
+        opacity: 0.55;
+        cursor: wait;
       }
 
-      .btn-secondary {
-        background: #f1f3f4;
-        color: #202124;
-      }
-
-      .btn-secondary:hover {
-        background: #e8eaed;
+      .full {
+        width: 100%;
+        margin-top: 8px;
       }
 
       .status {
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 13px;
-        margin-bottom: 12px;
         display: none;
+        margin: 10px 0 0;
+        padding: 9px;
+        border-radius: 4px;
+        font-size: 12px;
       }
 
       .status.success {
-        background: #e6f4ea;
+        display: block;
         color: #137333;
-        border: 1px solid #c6e1c6;
+        background: #e6f4ea;
       }
 
       .status.error {
+        display: block;
+        color: #b3261e;
         background: #fce8e6;
-        color: #c5221f;
-        border: 1px solid #f4c7c3;
       }
 
       .status.info {
+        display: block;
+        color: #174ea6;
         background: #e8f0fe;
-        color: #1967d2;
-        border: 1px solid #d2e3fc;
       }
 
+      .key-state,
       .usage {
-        font-size: 12px;
-        color: #5f6368;
-        text-align: center;
-        padding: 8px;
-        background: #f8f9fa;
-        border-radius: 4px;
         margin-top: 8px;
+        color: #5f6368;
+        font-size: 12px;
       }
 
-      .usage strong {
-        color: #202124;
+      .links {
+        display: grid;
+        gap: 8px;
       }
 
-      .checkbox-group {
-        max-height: 200px;
-        overflow-y: auto;
-        border: 1px solid #dadce0;
-        border-radius: 4px;
-        padding: 8px;
-        margin-bottom: 12px;
-      }
-
-      .checkbox-item {
-        display: flex;
-        align-items: center;
-        padding: 6px;
-        cursor: pointer;
-      }
-
-      .checkbox-item:hover {
-        background: #f8f9fa;
-        border-radius: 4px;
-      }
-
-      .checkbox-item input {
-        margin-right: 8px;
-      }
-
-      .checkbox-item label {
-        margin: 0;
-        cursor: pointer;
-        flex: 1;
-      }
-
-      .link {
+      a {
         color: #1a73e8;
         text-decoration: none;
-        font-size: 13px;
-      }
-
-      .link:hover {
-        text-decoration: underline;
-      }
-
-      .help-text {
-        font-size: 12px;
-        color: #5f6368;
-        margin-top: 8px;
-      }
-
-      .divider {
-        height: 1px;
-        background: #dadce0;
-        margin: 16px 0;
-      }
-
-      #loading {
-        text-align: center;
-        color: #5f6368;
-        padding: 20px;
-        display: none;
       }
     </style>
   </head>
   <body>
-    <!-- Configuration Section -->
-    <div class="section">
-      <h2>⚙️ Configuration</h2>
-
-      <div id="status" class="status"></div>
-
-      <label for="apiKey">API Key</label>
-      <input type="password" id="apiKey" placeholder="Enter your API key" />
-
-      <button onclick="saveApiKey()">Save API Key</button>
-      <button class="btn-secondary" onclick="testConnection()">
-        Test Connection
-      </button>
-
-      <div class="help-text">
-        Don't have an API key?
-        <a
-          href="https://www.oilpriceapi.com/signup?utm_source=google_sheets&utm_medium=addin&utm_campaign=readme"
-          target="_blank"
-          class="link"
-          >Sign up for free</a
-        >
-      </div>
+    <h1>OilPriceAPI</h1>
+    <div class="subtle">Google Sheets reference implementation</div>
+    <div class="notice">
+      Not currently published in the Google Workspace Marketplace.
+      Dataset access and freshness depend on the API key and source.
     </div>
 
-    <!-- Actions Section -->
     <div class="section">
-      <h2>📊 Actions</h2>
-
-      <button onclick="showFetchPrices()">Fetch Latest Prices</button>
-      <button class="btn-secondary" onclick="convertToMBtu()">
-        Convert to $/MMBtu
+      <h2>Credentials</h2>
+      <label for="apiKey">API key</label>
+      <input
+        type="password"
+        id="apiKey"
+        autocomplete="off"
+        placeholder="Paste a key to replace the stored value"
+      />
+      <div id="keyState" class="key-state">Checking configuration...</div>
+      <div class="row">
+        <button id="saveButton" onclick="saveApiKey()">Save</button>
+        <button class="danger" onclick="deleteApiKey()">Delete</button>
+      </div>
+      <button class="secondary full" onclick="testConnection()">
+        Test connection
       </button>
+      <div id="status" class="status" role="status"></div>
+    </div>
 
+    <div class="section">
+      <h2>Data</h2>
+      <button class="full" onclick="showFetchPrices()">
+        Fetch latest available prices
+      </button>
+      <button class="secondary full" onclick="convertToMBtu()">
+        Build reference USD/MMBtu sheet
+      </button>
       <div id="usageInfo" class="usage"></div>
     </div>
 
-    <!-- Quick Functions Section -->
-    <div class="section">
-      <h2>⚡ Quick Functions</h2>
-
-      <div class="help-text" style="margin-bottom: 12px">
-        Use these formulas in any cell:
-      </div>
-
-      <div
-        style="
-          background: #f8f9fa;
-          padding: 8px;
-          border-radius: 4px;
-          font-family: monospace;
-          font-size: 12px;
-          margin-bottom: 8px;
-        "
+    <div class="section links">
+      <a
+        href="https://www.oilpriceapi.com/auth/signup?utm_source=google_sheets&amp;utm_medium=reference&amp;utm_campaign=sidebar"
+        target="_blank"
+        >Create or manage API key</a
       >
-        =OILPRICE("BRENT_CRUDE_USD")
-      </div>
-
-      <div
-        style="
-          background: #f8f9fa;
-          padding: 8px;
-          border-radius: 4px;
-          font-family: monospace;
-          font-size: 12px;
-          margin-bottom: 8px;
-        "
+      <a href="https://docs.oilpriceapi.com" target="_blank">API documentation</a>
+      <a href="https://www.oilpriceapi.com/pricing" target="_blank"
+        >Dataset access</a
       >
-        =OILPRICE_CONVERT("WTI_USD")
-      </div>
-
-      <div
-        style="
-          background: #f8f9fa;
-          padding: 8px;
-          border-radius: 4px;
-          font-family: monospace;
-          font-size: 12px;
-        "
+      <a
+        href="https://api.oilpriceapi.com/product-facts.json"
+        target="_blank"
+        >Versioned product facts</a
       >
-        =OILPRICE_HISTORY("NATURAL_GAS_USD", 30)
-      </div>
     </div>
-
-    <!-- Resources Section -->
-    <div class="section">
-      <h2>📚 Resources</h2>
-
-      <div style="display: flex; flex-direction: column; gap: 8px">
-        <a href="https://docs.oilpriceapi.com" target="_blank" class="link"
-          >📖 Documentation</a
-        >
-        <a
-          href="https://www.oilpriceapi.com/tools/sheets-support"
-          target="_blank"
-          class="link"
-          >💬 Support</a
-        >
-        <a
-          href="https://www.oilpriceapi.com/pricing?utm_source=google_sheets&utm_medium=addin&utm_campaign=pricing"
-          target="_blank"
-          class="link"
-          >💰 Pricing</a
-        >
-      </div>
-    </div>
-
-    <div id="loading">Loading...</div>
 
     <script>
-      // Load API key on startup
-      google.script.run
-        .withSuccessHandler(function (apiKey) {
-          if (apiKey) {
-            document.getElementById("apiKey").value = apiKey;
-            loadUserInfo();
-          }
-        })
-        .getApiKey();
-
       function showStatus(message, type) {
-        const statusEl = document.getElementById("status");
-        statusEl.textContent = message;
-        statusEl.className = "status " + type;
-        statusEl.style.display = "block";
+        const element = document.getElementById("status");
+        element.textContent = message;
+        element.className = "status " + type;
+      }
 
-        setTimeout(() => {
-          statusEl.style.display = "none";
-        }, 5000);
+      function setBusy(busy) {
+        document.querySelectorAll("button").forEach(function (button) {
+          button.disabled = busy;
+        });
+      }
+
+      function loadKeyStatus() {
+        google.script.run
+          .withSuccessHandler(function (result) {
+            document.getElementById("keyState").textContent = result.configured
+              ? "A key is stored in your user properties."
+              : "No key is stored.";
+            if (result.configured) loadUserInfo();
+          })
+          .withFailureHandler(function (error) {
+            showStatus(error.message, "error");
+          })
+          .getApiKeyStatus();
       }
 
       function saveApiKey() {
-        const apiKey = document.getElementById("apiKey").value.trim();
-
+        const input = document.getElementById("apiKey");
+        const apiKey = input.value.trim();
         if (!apiKey) {
-          showStatus("Please enter an API key", "error");
+          showStatus("Enter an API key.", "error");
           return;
         }
-
+        setBusy(true);
         google.script.run
           .withSuccessHandler(function (result) {
-            if (result.success) {
-              showStatus(result.message, "success");
-              loadUserInfo();
-            } else {
-              showStatus(result.message, "error");
-            }
+            input.value = "";
+            showStatus(result.message, "success");
+            setBusy(false);
+            loadKeyStatus();
           })
           .withFailureHandler(function (error) {
-            showStatus("Failed to save: " + error.message, "error");
+            showStatus(error.message, "error");
+            setBusy(false);
           })
           .saveApiKey(apiKey);
       }
 
-      function testConnection() {
-        showStatus("Testing connection...", "info");
-
+      function deleteApiKey() {
+        setBusy(true);
         google.script.run
           .withSuccessHandler(function (result) {
-            if (result.success) {
-              showStatus(result.message, "success");
-            } else {
-              showStatus(result.message, "error");
-            }
+            document.getElementById("apiKey").value = "";
+            document.getElementById("usageInfo").textContent = "";
+            showStatus(result.message, "success");
+            setBusy(false);
+            loadKeyStatus();
           })
           .withFailureHandler(function (error) {
-            showStatus("Connection failed: " + error.message, "error");
+            showStatus(error.message, "error");
+            setBusy(false);
+          })
+          .deleteApiKey();
+      }
+
+      function testConnection() {
+        showStatus("Testing connection...", "info");
+        google.script.run
+          .withSuccessHandler(function (result) {
+            showStatus(result.message, result.success ? "success" : "error");
+          })
+          .withFailureHandler(function (error) {
+            showStatus(error.message, "error");
           })
           .testConnection();
       }
@@ -361,14 +289,18 @@
       function loadUserInfo() {
         google.script.run
           .withSuccessHandler(function (info) {
-            const usageEl = document.getElementById("usageInfo");
-            if (info.tier !== "none" && info.tier !== "unknown") {
-              const percentage = Math.round((info.used / info.limit) * 100);
-              usageEl.innerHTML = `
-              <strong>${info.tier.toUpperCase()}</strong> tier<br>
-              ${info.used.toLocaleString()} / ${info.limit.toLocaleString()} requests (${percentage}%)
-            `;
-              usageEl.style.display = "block";
+            const element = document.getElementById("usageInfo");
+            if (
+              info.tier !== "none" &&
+              info.tier !== "unknown" &&
+              Number.isFinite(info.limit) &&
+              Number.isFinite(info.used)
+            ) {
+              element.textContent =
+                info.tier + ": " + info.used.toLocaleString() +
+                " / " + info.limit.toLocaleString() + " requests";
+            } else {
+              element.textContent = "";
             }
           })
           .getUserInfo();
@@ -379,16 +311,18 @@
       }
 
       function convertToMBtu() {
-        showStatus("Converting to $/MMBtu...", "info");
+        showStatus("Building conversion sheet...", "info");
         google.script.run
           .withSuccessHandler(function () {
-            showStatus("Conversion complete!", "success");
+            showStatus("Conversion sheet updated.", "success");
           })
           .withFailureHandler(function (error) {
-            showStatus("Conversion failed: " + error.message, "error");
+            showStatus(error.message, "error");
           })
           .convertToMBtu();
       }
+
+      loadKeyStatus();
     </script>
   </body>
 </html>

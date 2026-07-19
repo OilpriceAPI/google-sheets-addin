@@ -1,13 +1,23 @@
 /**
- * OilPriceAPI Google Sheets Add-on
- * Real-time commodity price data
+ * OilPriceAPI Google Sheets reference implementation.
+ *
+ * This repository is not published in the Google Workspace Marketplace.
+ * Product facts: https://api.oilpriceapi.com/product-facts.json
  */
 
-// API Configuration
 const API_BASE_URL = 'https://api.oilpriceapi.com/v1';
-const RATE_LIMIT_CACHE_KEY = 'historical_fetch_timestamps';
+const KEY_PROPERTY = 'OILPRICEAPI_KEY';
+const MAX_BATCH_CODES = 25;
+const PRICING_URL = 'https://www.oilpriceapi.com/pricing';
+const SIGNUP_URL = 'https://www.oilpriceapi.com/auth/signup';
+const CACHE_TTL_SECONDS = {
+  latest: 300,
+  history: 3600,
+  futures: 300,
+  rigCount: 3600
+};
 
-// Commodity mapping
+// Conversion support is intentionally narrower than API catalog access.
 const COMMODITY_MAP = {
   'BRENT_CRUDE_USD': { type: 'BRENT_CRUDE_OIL', unit: 'barrel' },
   'WTI_USD': { type: 'WTI_CRUDE_OIL', unit: 'barrel' },
@@ -15,975 +25,639 @@ const COMMODITY_MAP = {
   'NATURAL_GAS_GBP': { type: 'NATURAL_GAS', unit: 'therm' },
   'DUTCH_TTF_EUR': { type: 'NATURAL_GAS', unit: 'MWh' },
   'COAL_USD': { type: 'COAL_BITUMINOUS', unit: 'tonne' },
-  // US Spot Coal
   'CAPP_COAL_USD': { type: 'COAL_BITUMINOUS', unit: 'short_ton' },
   'PRB_COAL_USD': { type: 'COAL_BITUMINOUS', unit: 'short_ton' },
   'ILLINOIS_COAL_USD': { type: 'COAL_BITUMINOUS', unit: 'short_ton' },
-  // International Coal Futures
   'NEWCASTLE_COAL_USD': { type: 'COAL_BITUMINOUS', unit: 'tonne' },
   'COKING_COAL_USD': { type: 'COAL_BITUMINOUS', unit: 'tonne' },
   'CME_COAL_USD': { type: 'COAL_BITUMINOUS', unit: 'short_ton' },
-  // NYMEX Historical (Discontinued)
   'NYMEX_APPALACHIAN_USD': { type: 'COAL_BITUMINOUS', unit: 'short_ton' },
   'NYMEX_WESTERN_RAIL_USD': { type: 'COAL_BITUMINOUS', unit: 'short_ton' }
 };
 
-// Heat content factors (MMBtu per unit)
+// Reference conversion factors. Verify suitability for the source dataset.
 const HEAT_CONTENT = {
   'BRENT_CRUDE_OIL': 5.8,
   'WTI_CRUDE_OIL': 5.8,
-  'NATURAL_GAS': 1.037,  // For Mcf
+  'NATURAL_GAS': 1.037,
   'COAL_BITUMINOUS': 24.0
 };
 
-/**
- * Add menu to Google Sheets UI
- */
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('OilPriceAPI')
     .addItem('Configure API Key', 'showSidebar')
-    .addItem('Fetch Latest Prices', 'showFetchDialog')
+    .addItem('Fetch Latest Available Prices', 'showFetchDialog')
     .addItem('Convert to $/MMBtu', 'convertToMBtu')
     .addSeparator()
     .addItem('Fetch Bunker Prices (Data Connector)', 'fetchDataConnectorPrices')
-    .addItem('Fetch Futures Data', 'showFuturesInfo')
-    .addItem('Fetch Rig Counts', 'showRigCountInfo')
+    .addItem('Futures Formula Help', 'showFuturesInfo')
+    .addItem('Rig Count Formula Help', 'showRigCountInfo')
     .addSeparator()
     .addItem('About', 'showAbout')
     .addToUi();
 }
 
-/**
- * Show sidebar for configuration
- */
 function showSidebar() {
   const html = HtmlService.createHtmlOutputFromFile('Sidebar')
-    .setTitle('OilPriceAPI Configuration')
-    .setWidth(300);
+    .setTitle('OilPriceAPI Reference')
+    .setWidth(320);
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
-/**
- * Show about dialog
- */
 function showAbout() {
   const ui = SpreadsheetApp.getUi();
   ui.alert(
-    'OilPriceAPI for Google Sheets',
-    'Version 1.0.0\n\n' +
-    'Real-time oil & commodity price data\n\n' +
-    'Website: https://oilpriceapi.com\n' +
-    'Support: support@oilpriceapi.com\n\n' +
-    '© 2025 OilPriceAPI',
+    'OilPriceAPI Google Sheets Reference',
+    'Version 1.1.0\n\n' +
+      'Source-timestamped energy price data. Dataset access and freshness vary.\n\n' +
+      'This reference implementation is not published in the Google Workspace Marketplace.\n\n' +
+      'Website: https://www.oilpriceapi.com\n' +
+      'Docs: https://docs.oilpriceapi.com',
     ui.ButtonSet.OK
   );
 }
 
-/**
- * Get API key from user properties
- */
-function getApiKey() {
-  return PropertiesService.getUserProperties().getProperty('OILPRICEAPI_KEY');
+function getApiKey_() {
+  return PropertiesService.getUserProperties().getProperty(KEY_PROPERTY);
 }
 
-/**
- * Save API key to user properties
- */
+function requireApiKey_() {
+  const apiKey = getApiKey_();
+  if (!apiKey) {
+    throw new Error(`Configure an API key from OilPriceAPI > Configure API Key, or create one at ${SIGNUP_URL}.`);
+  }
+  return apiKey;
+}
+
 function saveApiKey(apiKey) {
-  PropertiesService.getUserProperties().setProperty('OILPRICEAPI_KEY', apiKey);
-  return { success: true, message: 'API key saved successfully!' };
+  if (typeof apiKey !== 'string' || !apiKey.trim()) {
+    throw new Error('API key is required.');
+  }
+  PropertiesService.getUserProperties().setProperty(KEY_PROPERTY, apiKey.trim());
+  return { success: true, message: 'API key saved in your Apps Script user properties.' };
 }
 
-/**
- * Test API connection
- */
+function deleteApiKey() {
+  PropertiesService.getUserProperties().deleteProperty(KEY_PROPERTY);
+  return { success: true, message: 'Stored API key deleted.' };
+}
+
+function getApiKeyStatus() {
+  return { configured: Boolean(getApiKey_()) };
+}
+
+function normalizeCode_(value, label) {
+  const code = String(value || '').trim().toUpperCase();
+  if (!code) {
+    throw new Error(`${label || 'Code'} is required.`);
+  }
+  if (!/^[A-Z0-9_:-]+$/.test(code)) {
+    throw new Error(`${label || 'Code'} contains unsupported characters.`);
+  }
+  return code;
+}
+
+function requestJson_(path, apiKey) {
+  let response;
+  try {
+    response = UrlFetchApp.fetch(`${API_BASE_URL}${path}`, {
+      method: 'get',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Accept': 'application/json'
+      },
+      muteHttpExceptions: true
+    });
+  } catch (error) {
+    throw new Error('OilPriceAPI request failed or timed out. Retry later.');
+  }
+
+  const statusCode = response.getResponseCode();
+  if (statusCode === 401) {
+    throw new Error(`Invalid or revoked API key. Replace it from ${SIGNUP_URL}.`);
+  }
+  if (statusCode === 402 || statusCode === 403) {
+    throw new Error(`This account cannot access the requested dataset. Review ${PRICING_URL}.`);
+  }
+  if (statusCode === 429) {
+    throw new Error('OilPriceAPI rate or quota limit reached. Wait for the current limit window before retrying.');
+  }
+  if (statusCode === 404) {
+    throw new Error('The requested OilPriceAPI resource was not found. Check the code and endpoint.');
+  }
+  if (statusCode >= 500) {
+    throw new Error(`OilPriceAPI is temporarily unavailable (HTTP ${statusCode}). Retry later.`);
+  }
+  if (statusCode !== 200) {
+    throw new Error(`OilPriceAPI request failed with HTTP ${statusCode}.`);
+  }
+
+  let body;
+  try {
+    body = JSON.parse(response.getContentText());
+  } catch (error) {
+    throw new Error('OilPriceAPI returned malformed JSON for a successful request.');
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new Error('OilPriceAPI returned a non-object successful response.');
+  }
+  return body;
+}
+
+function extractPriceRecords_(body, subject) {
+  const payload = body.data;
+  let records = null;
+  if (Array.isArray(payload)) {
+    records = payload;
+  } else if (payload && typeof payload === 'object') {
+    if (Array.isArray(payload.prices)) {
+      records = payload.prices;
+    } else if (payload.price && typeof payload.price === 'object') {
+      records = [payload.price];
+    } else if ('code' in payload || 'price' in payload) {
+      records = [payload];
+    }
+  }
+  if (!Array.isArray(records) || records.length === 0 || records.some((item) => !item || typeof item !== 'object')) {
+    throw new Error(`OilPriceAPI returned no usable ${subject || 'price'} in a successful response.`);
+  }
+  return records;
+}
+
+function extractDataArray_(body, key, subject) {
+  const payload = body.data;
+  const records = payload && typeof payload === 'object' ? payload[key] : null;
+  if (!Array.isArray(records) || records.length === 0 || records.some((item) => !item || typeof item !== 'object')) {
+    throw new Error(`OilPriceAPI returned no usable ${subject} in a successful response.`);
+  }
+  return records;
+}
+
+function sourceTimestamp_(record, subject) {
+  const timestamp = record.created_at || record.updated_at || record.timestamp || record.date;
+  if (typeof timestamp !== 'string' || !timestamp.trim() || !Number.isFinite(new Date(timestamp).getTime())) {
+    throw new Error(`${subject} is missing a valid source timestamp.`);
+  }
+  return timestamp;
+}
+
+function validatePriceRecord_(record, subject) {
+  const code = normalizeCode_(record.code || record.symbol, `${subject} code`);
+  const price = Number(record.price);
+  if (!Number.isFinite(price)) {
+    throw new Error(`${subject} ${code} is missing a finite price.`);
+  }
+  if (typeof record.currency !== 'string' || !record.currency.trim()) {
+    throw new Error(`${subject} ${code} is missing currency.`);
+  }
+  if (typeof record.unit !== 'string' || !record.unit.trim()) {
+    throw new Error(`${subject} ${code} is missing unit.`);
+  }
+  return {
+    code,
+    price,
+    currency: record.currency.trim(),
+    unit: record.unit.trim(),
+    source: typeof record.source === 'string' ? record.source : '',
+    timestamp: sourceTimestamp_(record, `${subject} ${code}`)
+  };
+}
+
+function getCachedValue_(cacheKey, maxAgeSeconds) {
+  const cache = CacheService.getUserCache();
+  const raw = cache.get(cacheKey);
+  if (!raw) return null;
+
+  let envelope;
+  try {
+    envelope = JSON.parse(raw);
+  } catch (error) {
+    cache.remove(cacheKey);
+    return null;
+  }
+  if (
+    !envelope ||
+    typeof envelope.cachedAt !== 'number' ||
+    !Object.prototype.hasOwnProperty.call(envelope, 'value') ||
+    Date.now() - envelope.cachedAt > maxAgeSeconds * 1000
+  ) {
+    cache.remove(cacheKey);
+    return null;
+  }
+  return envelope.value;
+}
+
+function putCachedValue_(cacheKey, value, ttlSeconds) {
+  CacheService.getUserCache().put(
+    cacheKey,
+    JSON.stringify({ cachedAt: Date.now(), value }),
+    ttlSeconds
+  );
+}
+
+function getLatestRecord_(commodityCode) {
+  const code = normalizeCode_(commodityCode, 'Commodity code');
+  const cacheKey = `latest_${code}`;
+  const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.latest);
+  if (cached) return cached;
+
+  const body = requestJson_(`/prices/latest?by_code=${encodeURIComponent(code)}`, requireApiKey_());
+  const record = validatePriceRecord_(extractPriceRecords_(body, 'price')[0], 'Price record');
+  putCachedValue_(cacheKey, record, CACHE_TTL_SECONDS.latest);
+  return record;
+}
+
 function testConnection() {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    return { success: false, message: 'No API key found. Please configure your API key first.' };
+  if (!getApiKey_()) {
+    return { success: false, message: `Configure an API key first at ${SIGNUP_URL}.` };
   }
-
   try {
-    const url = `${API_BASE_URL}/prices/latest?by_code=BRENT_CRUDE_USD`;
-    const options = {
-      method: 'get',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const statusCode = response.getResponseCode();
-
-    if (statusCode === 200) {
-      return { success: true, message: 'Connection successful! ✓' };
-    } else if (statusCode === 401) {
-      return { success: false, message: 'Invalid API key. Please check and try again.' };
-    } else {
-      return { success: false, message: `Error: HTTP ${statusCode}` };
-    }
+    const body = requestJson_('/prices/latest?by_code=BRENT_CRUDE_USD', getApiKey_());
+    validatePriceRecord_(extractPriceRecords_(body, 'price')[0], 'Price record');
+    return { success: true, message: 'Connection and response schema verified.' };
   } catch (error) {
-    return { success: false, message: `Connection failed: ${error.message}` };
+    return { success: false, message: error.message };
   }
 }
 
-/**
- * Get user tier information
- */
 function getUserInfo() {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    return { tier: 'none', limit: 0, used: 0 };
+  if (!getApiKey_()) {
+    return { tier: 'none', limit: null, used: null };
   }
-
   try {
-    const url = `${API_BASE_URL}/users/me`;
-    const options = {
-      method: 'get',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const data = JSON.parse(response.getContentText());
-
-    return {
-      tier: data.tier || 'free',
-      limit: data.request_limit || 1000,
-      used: data.requests_this_month || 0
-    };
-  } catch (error) {
-    return { tier: 'unknown', limit: 0, used: 0 };
-  }
-}
-
-/**
- * Fetch latest prices for selected commodities
- */
-function fetchLatestPrices(commodityCodes) {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    throw new Error('No API key configured. Please set your API key first.');
-  }
-
-  try {
-    const codes = commodityCodes.join(',');
-    const url = `${API_BASE_URL}/prices/latest?by_code=${codes}`;
-    const options = {
-      method: 'get',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const statusCode = response.getResponseCode();
-
-    if (statusCode !== 200) {
-      throw new Error(`API request failed: HTTP ${statusCode}`);
+    const body = requestJson_('/users/me', getApiKey_());
+    const data = body.data && typeof body.data === 'object' ? body.data : body;
+    const tier = typeof data.tier === 'string' ? data.tier : (typeof data.plan === 'string' ? data.plan : null);
+    const limit = Number(data.request_limit);
+    const used = Number(data.requests_this_month);
+    if (!tier || !Number.isFinite(limit) || !Number.isFinite(used)) {
+      return { tier: 'unknown', limit: null, used: null };
     }
-
-    const data = JSON.parse(response.getContentText());
-    const prices = data.data.prices || [];
-
-    // Write to Data sheet
-    writeToDataSheet(prices);
-
-    return { success: true, count: prices.length };
+    return { tier, limit, used };
   } catch (error) {
-    throw new Error(`Failed to fetch prices: ${error.message}`);
+    return { tier: 'unknown', limit: null, used: null, message: error.message };
   }
 }
 
-/**
- * Write price data to Data sheet
- */
+function fetchLatestPrices(commodityCodes) {
+  if (!Array.isArray(commodityCodes) || commodityCodes.length === 0) {
+    throw new Error('Select at least one commodity code.');
+  }
+  if (commodityCodes.length > MAX_BATCH_CODES) {
+    throw new Error(`Select at most ${MAX_BATCH_CODES} commodity codes per refresh.`);
+  }
+  const codes = [...new Set(commodityCodes.map((code) => normalizeCode_(code, 'Commodity code')))];
+  const body = requestJson_(
+    `/prices/latest?by_code=${encodeURIComponent(codes.join(','))}`,
+    requireApiKey_()
+  );
+  const prices = extractPriceRecords_(body, 'prices').map((record) => validatePriceRecord_(record, 'Price record'));
+  writeToDataSheet(prices);
+  return { success: true, count: prices.length };
+}
+
 function writeToDataSheet(prices) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName('Data');
-
-  // Create sheet if doesn't exist
-  if (!sheet) {
-    sheet = ss.insertSheet('Data');
-  }
-
-  // Clear existing data
+  if (!sheet) sheet = ss.insertSheet('Data');
   sheet.clear();
 
-  // Add headers
-  const headers = [['Commodity Code', 'Price', 'Currency', 'Unit', 'Timestamp', 'Last Updated']];
-  sheet.getRange(1, 1, 1, 6).setValues(headers);
-  sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#f0f0f0');
-
-  // Add data rows
-  const rows = prices.map(p => [
-    p.code,
-    p.price,
-    p.currency || 'USD',
-    COMMODITY_MAP[p.code]?.unit || 'unknown',
-    p.created_at,
-    new Date().toISOString()
+  const headers = [['Commodity Code', 'Price', 'Currency', 'Unit', 'Source', 'Source Timestamp', 'Retrieved At']];
+  sheet.getRange(1, 1, 1, 7).setValues(headers);
+  sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#f0f0f0');
+  const retrievedAt = new Date().toISOString();
+  const rows = prices.map((record) => [
+    record.code,
+    record.price,
+    record.currency,
+    record.unit,
+    record.source,
+    record.timestamp,
+    retrievedAt
   ]);
-
-  if (rows.length > 0) {
-    sheet.getRange(2, 1, rows.length, 6).setValues(rows);
-
-    // Format price column
-    sheet.getRange(2, 2, rows.length, 1).setNumberFormat('#,##0.00');
-  }
-
-  // Auto-resize columns
-  sheet.autoResizeColumns(1, 6);
-
-  // Activate the sheet
+  sheet.getRange(2, 1, rows.length, 7).setValues(rows);
+  sheet.getRange(2, 2, rows.length, 1).setNumberFormat('#,##0.00');
+  sheet.autoResizeColumns(1, 7);
   sheet.activate();
 }
 
 /**
- * Convert prices to $/MMBtu
- */
-function convertToMBtu() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const dataSheet = ss.getSheetByName('Data');
-
-  if (!dataSheet) {
-    SpreadsheetApp.getUi().alert('No Data sheet found. Please fetch prices first.');
-    return;
-  }
-
-  // Get data from Data sheet
-  const dataRange = dataSheet.getDataRange();
-  const data = dataRange.getValues();
-
-  if (data.length <= 1) {
-    SpreadsheetApp.getUi().alert('No price data found. Please fetch prices first.');
-    return;
-  }
-
-  // Fetch exchange rates
-  const rates = fetchExchangeRates();
-
-  // Create or get Process sheet
-  let processSheet = ss.getSheetByName('Process');
-  if (!processSheet) {
-    processSheet = ss.insertSheet('Process');
-  }
-
-  processSheet.clear();
-
-  // Add headers
-  const headers = [['Commodity', 'Original Price', 'Currency', 'Unit', 'USD Price', 'Heat Content (MMBtu)', 'Price per MBtu (USD)']];
-  processSheet.getRange(1, 1, 1, 7).setValues(headers);
-  processSheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#e3f2fd');
-
-  // Process data rows
-  const processRows = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const [code, price, currency, unit] = data[i];
-
-    if (!code || !COMMODITY_MAP[code]) continue;
-
-    const commodityInfo = COMMODITY_MAP[code];
-
-    // Get heat content based on unit
-    let heatContent;
-    if (commodityInfo.unit === 'therm') {
-      heatContent = 0.1;  // 1 therm = 0.1 MMBtu
-    } else if (commodityInfo.unit === 'MWh') {
-      heatContent = 3.412;  // 1 MWh = 3.412 MMBtu
-    } else if (commodityInfo.unit === 'MBtu') {
-      heatContent = 1.0;  // Already in MMBtu
-    } else {
-      heatContent = HEAT_CONTENT[commodityInfo.type] || 1.0;
-    }
-
-    // Convert price to USD
-    let usdPrice = parseFloat(price);
-    if (currency === 'GBP' || currency === 'GBp') {
-      // UK Natural Gas is in pence, convert: pence → pounds → USD
-      usdPrice = (parseFloat(price) / 100) * rates.gbpUsd;
-    } else if (currency === 'EUR') {
-      usdPrice = parseFloat(price) * rates.eurUsd;
-    }
-
-    // Calculate price per MMBtu
-    let pricePerMBtu;
-    if (commodityInfo.unit === 'MBtu') {
-      pricePerMBtu = usdPrice;
-    } else {
-      pricePerMBtu = usdPrice / heatContent;
-    }
-
-    processRows.push([
-      code,
-      parseFloat(price),
-      currency || 'USD',
-      unit,
-      usdPrice,
-      heatContent,
-      pricePerMBtu
-    ]);
-  }
-
-  // Write converted data
-  if (processRows.length > 0) {
-    processSheet.getRange(2, 1, processRows.length, 7).setValues(processRows);
-
-    // Format columns
-    processSheet.getRange(2, 2, processRows.length, 1).setNumberFormat('#,##0.00');  // Original price
-    processSheet.getRange(2, 5, processRows.length, 1).setNumberFormat('$#,##0.00'); // USD price
-    processSheet.getRange(2, 6, processRows.length, 1).setNumberFormat('0.000');     // Heat content
-    processSheet.getRange(2, 7, processRows.length, 1).setNumberFormat('$#,##0.00'); // Price per MBtu
-  }
-
-  // Auto-resize columns
-  processSheet.autoResizeColumns(1, 7);
-
-  // Activate Process sheet
-  processSheet.activate();
-
-  SpreadsheetApp.getUi().alert(`Converted ${processRows.length} commodities to $/MMBtu`);
-}
-
-/**
- * Fetch exchange rates
- */
-function fetchExchangeRates() {
-  const apiKey = getApiKey();
-
-  try {
-    const url = `${API_BASE_URL}/prices/latest?by_code=GBP_USD,EUR_USD`;
-    const options = {
-      method: 'get',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const data = JSON.parse(response.getContentText());
-    const prices = data.data.prices || [];
-
-    const gbpRate = prices.find(p => p.code === 'GBP_USD')?.price || 1.30;
-    const eurRate = prices.find(p => p.code === 'EUR_USD')?.price || 1.10;
-
-    return { gbpUsd: gbpRate, eurUsd: eurRate };
-  } catch (error) {
-    // Return fallback rates
-    return { gbpUsd: 1.30, eurUsd: 1.10 };
-  }
-}
-
-/**
- * Custom function: Get latest price for a commodity
- * @param {string} commodityCode The commodity code (e.g., "BRENT_CRUDE_USD")
- * @return {number} The latest price
+ * Latest available numeric value for a commodity code.
+ * @param {string} commodityCode OilPriceAPI commodity code.
+ * @return {number} API-provided numeric price.
  * @customfunction
  */
 function OILPRICE(commodityCode) {
-  if (!commodityCode) {
-    throw new Error('Commodity code is required');
-  }
-
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('API key not configured. Use OilPriceAPI menu to configure.');
-  }
-
-  // Check cache first
-  const cache = CacheService.getUserCache();
-  const cacheKey = 'price_' + commodityCode;
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    return parseFloat(cached);
-  }
-
-  try {
-    const url = `${API_BASE_URL}/prices/latest?by_code=${commodityCode}`;
-    const options = {
-      method: 'get',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const data = JSON.parse(response.getContentText());
-
-    if (data.data && data.data.prices && data.data.prices.length > 0) {
-      const price = data.data.prices[0].price;
-      // Cache for 5 minutes (live data)
-      cache.put(cacheKey, price.toString(), 300);
-      return price;
-    }
-
-    throw new Error('No price data found');
-  } catch (error) {
-    throw new Error(`Failed to fetch price: ${error.message}`);
-  }
+  return getLatestRecord_(commodityCode).price;
 }
 
 /**
- * Custom function: Get historical prices
- * @param {string} commodityCode The commodity code
- * @param {number} days Number of days of history
- * @return {Array} Array of prices
+ * Historical source timestamp and price pairs.
+ * @param {string} commodityCode OilPriceAPI commodity code.
+ * @param {number} days Requested lookback selector from 1 through 365.
+ * @return {Array} Rows of [source timestamp, price].
  * @customfunction
  */
 function OILPRICE_HISTORY(commodityCode, days) {
-  if (!commodityCode) {
-    throw new Error('Commodity code is required');
+  const code = normalizeCode_(commodityCode, 'Commodity code');
+  const requestedDays = days === undefined || days === null || days === '' ? 30 : Number(days);
+  if (!Number.isInteger(requestedDays) || requestedDays < 1 || requestedDays > 365) {
+    throw new Error('History days must be an integer from 1 through 365.');
   }
+  const cacheKey = `history_${code}_${requestedDays}`;
+  const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.history);
+  if (cached) return cached;
 
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('API key not configured');
+  let endpoint = 'past_year';
+  if (requestedDays <= 1) endpoint = 'past_day';
+  else if (requestedDays <= 7) endpoint = 'past_week';
+  else if (requestedDays <= 30) endpoint = 'past_month';
+
+  const body = requestJson_(
+    `/prices/${endpoint}?by_code=${encodeURIComponent(code)}`,
+    requireApiKey_()
+  );
+  const records = extractPriceRecords_(body, 'historical price');
+  const result = records.map((record) => {
+    const normalized = validatePriceRecord_(record, 'Historical price record');
+    return [normalized.timestamp, normalized.price];
+  });
+  putCachedValue_(cacheKey, result, CACHE_TTL_SECONDS.history);
+  return result;
+}
+
+function fetchExchangeRates() {
+  const body = requestJson_('/prices/latest?by_code=GBP_USD,EUR_USD', requireApiKey_());
+  const records = extractPriceRecords_(body, 'exchange rates').map((record) => validatePriceRecord_(record, 'Exchange-rate record'));
+  const gbp = records.find((record) => record.code === 'GBP_USD');
+  const eur = records.find((record) => record.code === 'EUR_USD');
+  if (!gbp || !eur) {
+    throw new Error('OilPriceAPI response did not contain both GBP_USD and EUR_USD exchange rates.');
   }
+  return { gbpUsd: gbp.price, eurUsd: eur.price };
+}
 
-  days = days || 30;
+function toUsd_(price, currency, rates) {
+  if (currency === 'USD') return price;
+  if (currency === 'GBP') return price * rates.gbpUsd;
+  if (currency === 'GBp') return (price / 100) * rates.gbpUsd;
+  if (currency === 'EUR') return price * rates.eurUsd;
+  throw new Error(`No reference conversion is implemented for currency ${currency}.`);
+}
 
-  // Check cache first
-  const cache = CacheService.getUserCache();
-  const cacheKey = 'history_' + commodityCode + '_' + days;
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    return JSON.parse(cached);
+function heatContent_(commodityInfo) {
+  if (commodityInfo.unit === 'therm') return 0.1;
+  if (commodityInfo.unit === 'MWh') return 3.412;
+  if (commodityInfo.unit === 'MBtu') return 1;
+  const factor = HEAT_CONTENT[commodityInfo.type];
+  if (!Number.isFinite(factor)) {
+    throw new Error(`No heat-content factor is configured for ${commodityInfo.type}.`);
   }
-
-  try {
-    let endpoint;
-    if (days <= 1) {
-      endpoint = 'past_day';
-    } else if (days <= 7) {
-      endpoint = 'past_week';
-    } else if (days <= 30) {
-      endpoint = 'past_month';
-    } else {
-      endpoint = 'past_year';
-    }
-    const url = `${API_BASE_URL}/prices/${endpoint}?by_code=${commodityCode}`;
-    const options = {
-      method: 'get',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const data = JSON.parse(response.getContentText());
-
-    if (data.data && data.data.prices) {
-      const result = data.data.prices.map(p => [p.created_at, p.price]);
-      // Cache for 1 hour
-      cache.put(cacheKey, JSON.stringify(result), 3600);
-      return result;
-    }
-
-    throw new Error('No price data found');
-  } catch (error) {
-    throw new Error(`Failed to fetch history: ${error.message}`);
-  }
+  return factor;
 }
 
 /**
- * Custom function: Convert commodity price to $/MMBtu
- * @param {string} commodityCode The commodity code
- * @return {number} Price in $/MMBtu
+ * Reference conversion to USD/MMBtu for codes in COMMODITY_MAP.
+ * @param {string} commodityCode OilPriceAPI commodity code.
+ * @return {number} Reference converted value.
  * @customfunction
  */
 function OILPRICE_CONVERT(commodityCode) {
-  if (!commodityCode) {
-    throw new Error('Commodity code is required');
-  }
-
-  const price = OILPRICE(commodityCode);
-  const commodityInfo = COMMODITY_MAP[commodityCode];
-
+  const code = normalizeCode_(commodityCode, 'Commodity code');
+  const commodityInfo = COMMODITY_MAP[code];
   if (!commodityInfo) {
-    throw new Error('Unknown commodity code');
+    throw new Error('This code has no reference heat-content conversion mapping.');
   }
-
-  // Get heat content based on unit
-  let heatContent;
-  if (commodityInfo.unit === 'therm') {
-    heatContent = 0.1;
-  } else if (commodityInfo.unit === 'MWh') {
-    heatContent = 3.412;
-  } else if (commodityInfo.unit === 'MBtu') {
-    return price;  // Already in MMBtu
-  } else {
-    heatContent = HEAT_CONTENT[commodityInfo.type] || 1.0;
-  }
-
-  return price / heatContent;
+  const record = getLatestRecord_(code);
+  const rates = record.currency === 'USD' ? null : fetchExchangeRates();
+  return toUsd_(record.price, record.currency, rates) / heatContent_(commodityInfo);
 }
 
-/**
- * Show fetch prices dialog
- */
-function showFetchDialog() {
-  const html = HtmlService.createHtmlOutputFromFile('FetchDialog')
-    .setWidth(400)
-    .setHeight(500);
-  SpreadsheetApp.getUi().showModalDialog(html, 'Fetch Latest Prices');
-}
-
-// ============================================================================
-// DATA CONNECTOR (BYOS) - Bunker Fuel Prices
-// ============================================================================
-
-/**
- * Fetch bunker fuel prices from Data Connector (BYOS)
- * Requires Data Connector feature enabled on your organization
- */
-function fetchDataConnectorPrices() {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    SpreadsheetApp.getUi().alert('No API key configured. Please set your API key first.');
+function convertToMBtu() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const dataSheet = ss.getSheetByName('Data');
+  if (!dataSheet) {
+    SpreadsheetApp.getUi().alert('No Data sheet found. Fetch prices first.');
+    return;
+  }
+  const data = dataSheet.getDataRange().getValues();
+  if (data.length <= 1) {
+    SpreadsheetApp.getUi().alert('No price rows found. Fetch prices first.');
     return;
   }
 
+  const needsRates = data.slice(1).some((row) => row[2] && row[2] !== 'USD');
+  const rates = needsRates ? fetchExchangeRates() : null;
+  const processRows = [];
+  for (let index = 1; index < data.length; index += 1) {
+    const [code, rawPrice, currency, unit] = data[index];
+    if (!code || !COMMODITY_MAP[code]) continue;
+    const price = Number(rawPrice);
+    if (!Number.isFinite(price) || typeof currency !== 'string' || !currency) {
+      throw new Error(`Data row ${index + 1} is missing a valid price or currency.`);
+    }
+    const commodityInfo = COMMODITY_MAP[code];
+    const usdPrice = toUsd_(price, currency, rates);
+    const heatContent = heatContent_(commodityInfo);
+    processRows.push([code, price, currency, unit, usdPrice, heatContent, usdPrice / heatContent]);
+  }
+  if (processRows.length === 0) {
+    throw new Error('No Data rows have a configured reference conversion mapping.');
+  }
+
+  let processSheet = ss.getSheetByName('Process');
+  if (!processSheet) processSheet = ss.insertSheet('Process');
+  processSheet.clear();
+  const headers = [['Commodity', 'Original Price', 'Currency', 'API Unit', 'USD Price', 'Reference MMBtu/Unit', 'Reference USD/MMBtu']];
+  processSheet.getRange(1, 1, 1, 7).setValues(headers);
+  processSheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#e3f2fd');
+  processSheet.getRange(2, 1, processRows.length, 7).setValues(processRows);
+  processSheet.getRange(2, 2, processRows.length, 1).setNumberFormat('#,##0.00');
+  processSheet.getRange(2, 5, processRows.length, 1).setNumberFormat('$#,##0.00');
+  processSheet.getRange(2, 6, processRows.length, 1).setNumberFormat('0.000');
+  processSheet.getRange(2, 7, processRows.length, 1).setNumberFormat('$#,##0.00');
+  processSheet.autoResizeColumns(1, 7);
+  processSheet.activate();
+  SpreadsheetApp.getUi().alert(`Converted ${processRows.length} rows using the documented reference factors.`);
+}
+
+function showFetchDialog() {
+  const html = HtmlService.createHtmlOutputFromFile('FetchDialog')
+    .setWidth(420)
+    .setHeight(560);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Fetch Latest Available Prices');
+}
+
+function validateBunkerRecord_(record) {
+  const price = Number(record.price);
+  if (!Number.isFinite(price)) throw new Error('Bunker record is missing a finite price.');
+  if (typeof record.port !== 'string' || !record.port) throw new Error('Bunker record is missing port.');
+  if (typeof record.fuel_type !== 'string' || !record.fuel_type) throw new Error('Bunker record is missing fuel type.');
+  if (typeof record.currency !== 'string' || !record.currency) throw new Error('Bunker record is missing currency.');
+  if (typeof record.unit !== 'string' || !record.unit) throw new Error('Bunker record is missing unit.');
+  return {
+    port: record.port,
+    fuelType: record.fuel_type,
+    price,
+    currency: record.currency,
+    unit: record.unit,
+    region: typeof record.region === 'string' ? record.region : '',
+    source: typeof record.source === 'string' ? record.source : '',
+    timestamp: sourceTimestamp_(record, 'Bunker record')
+  };
+}
+
+function fetchBunkerRecords_(query) {
+  const body = requestJson_(`/prices/data-connector${query || ''}`, requireApiKey_());
+  return extractPriceRecords_(body, 'bunker price').map(validateBunkerRecord_);
+}
+
+function fetchDataConnectorPrices() {
   try {
-    const url = `${API_BASE_URL}/prices/data-connector`;
-    const options = {
-      method: 'get',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const statusCode = response.getResponseCode();
-
-    if (statusCode === 403) {
-      SpreadsheetApp.getUi().alert(
-        'Data Connector not enabled',
-        'Your organization does not have Data Connector enabled.\n\n' +
-        'Contact sales@oilpriceapi.com to enable this feature.',
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-
-    if (statusCode !== 200) {
-      throw new Error(`API request failed: HTTP ${statusCode}`);
-    }
-
-    const data = JSON.parse(response.getContentText());
-    const prices = data.data?.prices || [];
-
-    if (prices.length === 0) {
-      SpreadsheetApp.getUi().alert('No bunker prices found. Check your Data Connector configuration.');
-      return;
-    }
-
-    // Write to Bunker Prices sheet
+    const prices = fetchBunkerRecords_('');
     writeToDataConnectorSheet(prices);
-
-    SpreadsheetApp.getUi().alert(`Fetched ${prices.length} bunker fuel prices.`);
+    SpreadsheetApp.getUi().alert(`Fetched ${prices.length} source-timestamped bunker price records.`);
   } catch (error) {
-    SpreadsheetApp.getUi().alert(`Failed to fetch bunker prices: ${error.message}`);
+    SpreadsheetApp.getUi().alert(`Bunker price request failed: ${error.message}`);
   }
 }
 
-/**
- * Write Data Connector prices to Bunker Prices sheet
- */
 function writeToDataConnectorSheet(prices) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName('Bunker Prices');
-
-  // Create sheet if doesn't exist
-  if (!sheet) {
-    sheet = ss.insertSheet('Bunker Prices');
-  }
-
-  // Clear existing data
+  if (!sheet) sheet = ss.insertSheet('Bunker Prices');
   sheet.clear();
-
-  // Add headers
-  const headers = [['Port', 'Fuel Type', 'Price', 'Currency', 'Unit', 'Region', 'Source', 'Timestamp', 'Last Updated']];
+  const headers = [['Port', 'Fuel Type', 'Price', 'Currency', 'Unit', 'Region', 'Source', 'Source Timestamp', 'Retrieved At']];
   sheet.getRange(1, 1, 1, 9).setValues(headers);
-  sheet.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#e8f5e9');  // Light green for marine theme
-
-  // Add data rows
-  const rows = prices.map(p => [
-    p.port,
-    p.fuel_type,
-    p.price,
-    p.currency,
-    p.unit,
-    p.region || '',
-    p.source,
-    p.timestamp,
-    new Date().toISOString()
+  sheet.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#e8f5e9');
+  const retrievedAt = new Date().toISOString();
+  const rows = prices.map((record) => [
+    record.port,
+    record.fuelType,
+    record.price,
+    record.currency,
+    record.unit,
+    record.region,
+    record.source,
+    record.timestamp,
+    retrievedAt
   ]);
-
-  if (rows.length > 0) {
-    sheet.getRange(2, 1, rows.length, 9).setValues(rows);
-
-    // Format price column as currency
-    sheet.getRange(2, 3, rows.length, 1).setNumberFormat('$#,##0.00');
-  }
-
-  // Auto-resize columns
+  sheet.getRange(2, 1, rows.length, 9).setValues(rows);
+  sheet.getRange(2, 3, rows.length, 1).setNumberFormat('#,##0.00');
   sheet.autoResizeColumns(1, 9);
-
-  // Activate the sheet
   sheet.activate();
 }
 
-/**
- * Custom function: Get bunker fuel price for a port
- * @param {string} port The port name (e.g., "SINGAPORE", "ROTTERDAM")
- * @param {string} fuelType The fuel type (e.g., "VLSFO", "MGO", "IFO380")
- * @return {number} The latest bunker price in USD/MT
- * @customfunction
- */
+/** @customfunction */
 function BUNKER_PRICE(port, fuelType) {
-  if (!port) {
-    throw new Error('Port is required');
-  }
-  if (!fuelType) {
-    throw new Error('Fuel type is required (VLSFO, MGO, or IFO380)');
-  }
-
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('API key not configured. Use OilPriceAPI menu to configure.');
-  }
-
-  try {
-    const url = `${API_BASE_URL}/prices/data-connector?port=${encodeURIComponent(port.toUpperCase())}&fuel_type=${encodeURIComponent(fuelType.toUpperCase())}`;
-    const options = {
-      method: 'get',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const statusCode = response.getResponseCode();
-
-    if (statusCode === 403) {
-      throw new Error('Data Connector not enabled for your organization');
-    }
-
-    const data = JSON.parse(response.getContentText());
-    const prices = data.data?.prices || [];
-
-    if (prices.length === 0) {
-      throw new Error(`No price found for ${fuelType} at ${port}`);
-    }
-
-    return prices[0].price;
-  } catch (error) {
-    throw new Error(`Failed to fetch bunker price: ${error.message}`);
-  }
+  const normalizedPort = normalizeCode_(port, 'Port');
+  const normalizedFuel = normalizeCode_(fuelType, 'Fuel type');
+  const records = fetchBunkerRecords_(
+    `?port=${encodeURIComponent(normalizedPort)}&fuel_type=${encodeURIComponent(normalizedFuel)}`
+  );
+  return records[0].price;
 }
 
-/**
- * Custom function: Get all bunker prices for a port
- * Returns array with fuel type and price for all fuel grades
- * @param {string} port The port name (e.g., "SINGAPORE")
- * @return {Array} Array of [fuel_type, price] pairs
- * @customfunction
- */
+/** @customfunction */
 function BUNKER_PORT_PRICES(port) {
-  if (!port) {
-    throw new Error('Port is required');
-  }
-
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('API key not configured');
-  }
-
-  try {
-    const url = `${API_BASE_URL}/prices/data-connector?port=${encodeURIComponent(port.toUpperCase())}`;
-    const options = {
-      method: 'get',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const data = JSON.parse(response.getContentText());
-    const prices = data.data?.prices || [];
-
-    if (prices.length === 0) {
-      return [['No prices found']];
-    }
-
-    // Return header + prices
-    return [['Fuel Type', 'Price (USD/MT)']].concat(
-      prices.map(p => [p.fuel_type, p.price])
-    );
-  } catch (error) {
-    throw new Error(`Failed to fetch: ${error.message}`);
-  }
+  const normalizedPort = normalizeCode_(port, 'Port');
+  const records = fetchBunkerRecords_(`?port=${encodeURIComponent(normalizedPort)}`);
+  return [['Fuel Type', 'Price', 'Currency', 'Unit', 'Source Timestamp']].concat(
+    records.map((record) => [record.fuelType, record.price, record.currency, record.unit, record.timestamp])
+  );
 }
 
-// ============================================================================
-// FUTURES DATA
-// ============================================================================
+function validateFutureContract_(record, subject) {
+  const price = Number(record.price);
+  if (!Number.isFinite(price)) throw new Error(`${subject} is missing a finite price.`);
+  return {
+    month: typeof record.month === 'string' ? record.month : '',
+    price,
+    change: Number.isFinite(Number(record.change)) ? Number(record.change) : ''
+  };
+}
 
-/**
- * Custom function: Get latest futures price for a contract
- * @param {string} contract The futures contract code ("BZ" for Brent, "CL" for WTI)
- * @return {number} The front-month futures price
- * @customfunction
- */
+/** @customfunction */
 function FUTURES_PRICE(contract) {
-  if (!contract) {
-    throw new Error('Contract code is required (BZ for Brent, CL for WTI)');
-  }
-
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('API key not configured. Use OilPriceAPI menu to configure.');
-  }
-
-  // Check cache first
-  const cache = CacheService.getUserCache();
-  const cacheKey = 'futures_price_' + contract.toUpperCase();
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    return parseFloat(cached);
-  }
-
-  try {
-    const url = `${API_BASE_URL}/futures/latest?contract=${encodeURIComponent(contract.toUpperCase())}`;
-    const options = {
-      method: 'get',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const statusCode = response.getResponseCode();
-
-    if (statusCode !== 200) {
-      throw new Error(`API request failed: HTTP ${statusCode}`);
-    }
-
-    const data = JSON.parse(response.getContentText());
-
-    if (data.data && data.data.contracts && data.data.contracts.length > 0) {
-      const price = data.data.contracts[0].price;
-      // Cache for 5 minutes (matches spot price TTL)
-      cache.put(cacheKey, price.toString(), 300);
-      return price;
-    }
-
-    throw new Error('No futures data found');
-  } catch (error) {
-    throw new Error(`Failed to fetch futures price: ${error.message}`);
-  }
+  const code = normalizeCode_(contract, 'Contract code');
+  const cacheKey = `futures_price_${code}`;
+  const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.futures);
+  if (cached !== null) return cached;
+  const body = requestJson_(`/futures/latest?contract=${encodeURIComponent(code)}`, requireApiKey_());
+  const value = validateFutureContract_(extractDataArray_(body, 'contracts', 'futures contracts')[0], 'Futures contract').price;
+  putCachedValue_(cacheKey, value, CACHE_TTL_SECONDS.futures);
+  return value;
 }
 
-/**
- * Custom function: Get futures forward curve
- * Returns array of contract months and prices
- * @param {string} contract The futures contract code ("BZ" for Brent, "CL" for WTI)
- * @return {Array} Array of [month, price, change] rows
- * @customfunction
- */
+/** @customfunction */
 function FUTURES_CURVE(contract) {
-  if (!contract) {
-    throw new Error('Contract code is required (BZ for Brent, CL for WTI)');
-  }
-
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('API key not configured. Use OilPriceAPI menu to configure.');
-  }
-
-  // Check cache first
-  const cache = CacheService.getUserCache();
-  const cacheKey = 'futures_curve_' + contract.toUpperCase();
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    return JSON.parse(cached);
-  }
-
-  try {
-    const url = `${API_BASE_URL}/futures/curve?contract=${encodeURIComponent(contract.toUpperCase())}`;
-    const options = {
-      method: 'get',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const statusCode = response.getResponseCode();
-
-    if (statusCode !== 200) {
-      throw new Error(`API request failed: HTTP ${statusCode}`);
-    }
-
-    const data = JSON.parse(response.getContentText());
-
-    if (data.data && data.data.contracts && data.data.contracts.length > 0) {
-      const result = [['Month', 'Price', 'Change']];
-      data.data.contracts.forEach(c => {
-        result.push([
-          c.month,
-          c.price,
-          c.change !== undefined ? c.change : ''
-        ]);
-      });
-
-      // Cache for 5 minutes (matches spot price TTL)
-      cache.put(cacheKey, JSON.stringify(result), 300);
-      return result;
-    }
-
-    throw new Error('No futures curve data found');
-  } catch (error) {
-    throw new Error(`Failed to fetch futures curve: ${error.message}`);
-  }
+  const code = normalizeCode_(contract, 'Contract code');
+  const cacheKey = `futures_curve_${code}`;
+  const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.futures);
+  if (cached) return cached;
+  const body = requestJson_(`/futures/curve?contract=${encodeURIComponent(code)}`, requireApiKey_());
+  const contracts = extractDataArray_(body, 'contracts', 'futures contracts').map((record) => validateFutureContract_(record, 'Futures contract'));
+  const result = [['Month', 'Price', 'Change']].concat(
+    contracts.map((record) => [record.month, record.price, record.change])
+  );
+  putCachedValue_(cacheKey, result, CACHE_TTL_SECONDS.futures);
+  return result;
 }
 
-/**
- * Show futures info dialog
- */
 function showFuturesInfo() {
   const ui = SpreadsheetApp.getUi();
   ui.alert(
     'Futures Data Functions',
-    'Use these custom functions in your spreadsheet:\n\n' +
-    '=FUTURES_PRICE("BZ")\n  Get Brent front-month futures price\n\n' +
-    '=FUTURES_PRICE("CL")\n  Get WTI front-month futures price\n\n' +
-    '=FUTURES_CURVE("BZ")\n  Get full Brent forward curve\n\n' +
-    'Note: Requires Reservoir Mastery subscription.',
+    '=FUTURES_PRICE("BZ")\n=FUTURES_PRICE("CL")\n=FUTURES_CURVE("BZ")\n\nDataset access depends on your account entitlements. Review ' + PRICING_URL,
     ui.ButtonSet.OK
   );
 }
 
-// ============================================================================
-// RIG COUNT DATA
-// ============================================================================
-
-/**
- * Custom function: Get latest rig count data
- * @param {string} type The rig type to return: "oil", "gas", "total", or "all"
- * @return {number|Array} Rig count number, or array if type is "all"
- * @customfunction
- */
-function RIG_COUNT(type) {
-  type = (type || 'total').toLowerCase();
-
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('API key not configured. Use OilPriceAPI menu to configure.');
+function validateRigData_(data) {
+  if (!data || typeof data !== 'object') throw new Error('Rig count response is missing data.');
+  const oil = Number(data.oil);
+  const gas = Number(data.gas);
+  const total = Number(data.total);
+  if (![oil, gas, total].every(Number.isFinite)) {
+    throw new Error('Rig count response is missing numeric oil, gas, or total values.');
   }
-
-  // Check cache first
-  const cache = CacheService.getUserCache();
-  const cacheKey = 'rig_count_data';
-  const cached = cache.get(cacheKey);
-  let rigData;
-
-  if (cached) {
-    rigData = JSON.parse(cached);
-  } else {
-    try {
-      const url = `${API_BASE_URL}/rig-counts/latest`;
-      const options = {
-        method: 'get',
-        headers: {
-          'Authorization': `Token ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        muteHttpExceptions: true
-      };
-
-      const response = UrlFetchApp.fetch(url, options);
-      const statusCode = response.getResponseCode();
-
-      if (statusCode !== 200) {
-        throw new Error(`API request failed: HTTP ${statusCode}`);
-      }
-
-      const data = JSON.parse(response.getContentText());
-
-      if (!data.data) {
-        throw new Error('No rig count data found');
-      }
-
-      rigData = data.data;
-      // Cache for 1 hour
-      cache.put(cacheKey, JSON.stringify(rigData), 3600);
-    } catch (error) {
-      throw new Error(`Failed to fetch rig counts: ${error.message}`);
-    }
+  if (typeof data.date !== 'string' || !data.date || !Number.isFinite(new Date(data.date).getTime())) {
+    throw new Error('Rig count response is missing a valid source date.');
   }
-
-  switch (type) {
-    case 'oil':
-      return rigData.oil;
-    case 'gas':
-      return rigData.gas;
-    case 'total':
-      return rigData.total;
-    case 'all':
-      return [
-        ['Type', 'Count'],
-        ['Oil', rigData.oil],
-        ['Gas', rigData.gas],
-        ['Total', rigData.total],
-        ['Date', rigData.date]
-      ];
-    default:
-      throw new Error('Invalid type. Use "oil", "gas", "total", or "all"');
-  }
+  return { oil, gas, total, date: data.date };
 }
 
-/**
- * Show rig count info dialog
- */
+/** @customfunction */
+function RIG_COUNT(type) {
+  const selectedType = String(type || 'total').toLowerCase();
+  const cacheKey = 'rig_count_data';
+  let rigData = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.rigCount);
+  if (!rigData) {
+    const body = requestJson_('/rig-counts/latest', requireApiKey_());
+    rigData = validateRigData_(body.data);
+    putCachedValue_(cacheKey, rigData, CACHE_TTL_SECONDS.rigCount);
+  }
+  if (selectedType === 'oil') return rigData.oil;
+  if (selectedType === 'gas') return rigData.gas;
+  if (selectedType === 'total') return rigData.total;
+  if (selectedType === 'all') {
+    return [
+      ['Type', 'Count'],
+      ['Oil', rigData.oil],
+      ['Gas', rigData.gas],
+      ['Total', rigData.total],
+      ['Source Date', rigData.date]
+    ];
+  }
+  throw new Error('Rig count type must be oil, gas, total, or all.');
+}
+
 function showRigCountInfo() {
   const ui = SpreadsheetApp.getUi();
   ui.alert(
     'Rig Count Functions',
-    'Use these custom functions in your spreadsheet:\n\n' +
-    '=RIG_COUNT("oil")\n  Get oil rig count\n\n' +
-    '=RIG_COUNT("gas")\n  Get gas rig count\n\n' +
-    '=RIG_COUNT("total")\n  Get total rig count\n\n' +
-    '=RIG_COUNT("all")\n  Get full rig count breakdown',
+    '=RIG_COUNT("oil")\n=RIG_COUNT("gas")\n=RIG_COUNT("total")\n=RIG_COUNT("all")\n\nDataset access depends on your account entitlements.',
     ui.ButtonSet.OK
   );
 }

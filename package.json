@@ -1,0 +1,15 @@
+{
+  "name": "oilpriceapi-google-sheets-reference",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Reference Google Apps Script integration for OilPriceAPI",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/runtime.test.js test/public-claims.test.js",
+    "test:live": "node test/live-smoke.js",
+    "validate": "node test/validate_code.js && node --test test/runtime.test.js test/public-claims.test.js && ./scripts/scan-secrets.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

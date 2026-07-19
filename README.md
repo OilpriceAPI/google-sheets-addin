@@ -1,241 +1,124 @@
-# OilPriceAPI Google Sheets Add-on
+# OilPriceAPI Google Sheets Reference
 
-**Real-time oil & commodity price data directly in Google Sheets**
+Source-timestamped OilPriceAPI records in Google Sheets through a manually
+installed Apps Script project.
 
-## 🎯 Overview
+> This is a reference implementation. It is not currently published in the
+> Google Workspace Marketplace. Do not search for or install an add-on that
+> claims to be this repository.
 
-This Google Sheets add-on brings live commodity prices to your spreadsheets:
+Dataset access, history, freshness, and limits depend on the API key, source,
+and account entitlement. Review the
+[versioned product-facts contract](https://api.oilpriceapi.com/product-facts.json)
+before publishing derived product claims.
 
-- **Custom Functions**: `=OILPRICE("BRENT_CRUDE_USD")`
-- **Sidebar UI**: Fetch and manage prices easily
-- **Auto-Convert**: Standardize all prices to $/MMBtu
-- **Historical Data**: Access 20+ years of daily prices
+## Install In A Test Sheet
 
-## 📦 Features
+1. Create a blank Google Sheet.
+2. Open **Extensions > Apps Script**.
+3. Replace the default script with [Code.gs](Code.gs).
+4. Add HTML files named `Sidebar` and `FetchDialog`, using
+   [Sidebar.html](Sidebar.html) and [FetchDialog.html](FetchDialog.html).
+5. Enable the manifest in Project Settings and replace it with
+   [appsscript.json](appsscript.json).
+6. Save, return to the sheet, and reload it.
+7. Open **OilPriceAPI > Configure API Key** and save an API key.
 
-### Custom Functions
+Create or manage keys at
+[oilpriceapi.com/auth/signup](https://www.oilpriceapi.com/auth/signup?utm_source=google_sheets&utm_medium=reference&utm_campaign=readme).
+The script stores the key in Apps Script user properties and never writes it to
+a cell, URL, log, or browser-side HTML.
 
-```javascript
-=OILPRICE("BRENT_CRUDE_USD")           // Returns latest Brent Crude price
-=OILPRICE_HISTORY("WTI_USD", 30)       // Returns 30 days of WTI data
-=OILPRICE_CONVERT("NATURAL_GAS_GBP")   // Returns price in $/MMBtu
+## Verify One Formula
+
+Enter this formula in a cell:
+
+```text
+=OILPRICE("WTI_USD")
 ```
 
-### Sidebar Features
+The cell returns the numeric value from the latest available source record. To
+inspect its source, unit, currency, and timestamp, use **OilPriceAPI > Fetch
+Latest Available Prices**. The resulting `Data` sheet separates `Source
+Timestamp` from the client-side `Retrieved At` timestamp.
 
-- API key management
-- Commodity selection (20+ commodities)
-- Fetch latest prices
-- Convert to $/MMBtu
-- Historical data charts
-- Usage tracking
+## Functions
 
-### Tier Detection
+| Function | Executable behavior | Reference cache |
+| --- | --- | --- |
+| `OILPRICE(code)` | Numeric latest available price | 5 minutes |
+| `OILPRICE_HISTORY(code, days)` | `[source timestamp, price]` rows; `days` selects a versioned lookback endpoint from 1 through 365 | 1 hour |
+| `OILPRICE_CONVERT(code)` | Reference USD/MMBtu conversion for codes in `COMMODITY_MAP` | Shares latest-price cache |
+| `BUNKER_PRICE(port, fuel)` | Numeric Data Connector price | None |
+| `BUNKER_PORT_PRICES(port)` | Fuel, price, currency, unit, and source timestamp rows | None |
+| `FUTURES_PRICE(contract)` | Numeric first contract price | 5 minutes |
+| `FUTURES_CURVE(contract)` | Month, price, and change rows | 5 minutes |
+| `RIG_COUNT(type)` | Oil, gas, total, or a source-dated table | 1 hour |
 
-- Free: 100 requests (lifetime)
-- Exploration: 10,000 requests/month + historical data
-- Production+: Higher limits + webhooks
+The dialog contains example commodity codes, not a guarantee of universal
+catalog access. Check the current
+[commodity catalog](https://www.oilpriceapi.com/commodities) and your account
+entitlements.
 
-## 🚀 Installation
+Google Sheets controls formula recalculation. This script does not poll in the
+background. A recalculation inside a cache window returns the cached source
+record; a stale or malformed cache envelope is discarded before a new request.
 
-### From Google Workspace Marketplace (Coming Soon)
+## Failure Behavior
 
-1. Open any Google Sheet
-2. Extensions → Add-ons → Get add-ons
-3. Search "OilPriceAPI Energy Prices"
-4. Click Install
+All network paths use the same response validator:
 
-### For Development
+- Missing key links to key management.
+- `401` identifies an invalid or revoked key.
+- `402` and `403` link to current dataset access options.
+- `429` explains that the rate or quota window must recover before retrying.
+- Fetch exceptions expose timeout recovery without logging credentials.
+- Empty or malformed successful responses fail instead of returning zero,
+  guessed currency or units, fallback exchange rates, or the current time.
+- Batch refresh accepts at most 25 selected codes per request.
 
-1. Open Google Sheets
-2. Extensions → Apps Script
-3. Copy code from `Code.gs` and `Sidebar.html`
-4. Save and refresh
+## Conversion Scope
 
-## 📖 Quick Start
+`OILPRICE_CONVERT` is a reference calculation. Its heat-content factors are
+defined in `Code.gs`, and its currency conversion requires API-provided
+`GBP_USD` and `EUR_USD` records when needed. It does not use fallback exchange
+rates. Verify the factor and source unit for your analytical or commercial use.
 
-### Step 1: Get API Key
+## Security
 
-Visit https://www.oilpriceapi.com/signup?utm_source=google_sheets&utm_medium=addin&utm_campaign=readme to get your free API key.
+- Keys are stored in per-user Apps Script properties, not encrypted by this
+  repository.
+- The sidebar receives only `{ configured: true|false }`; it cannot load the
+  stored value back into the browser.
+- Delete the key from the sidebar before sharing or transferring a test sheet.
+- Do not place a key in cells, script source, screenshots, URLs, logs, issues,
+  or analytics.
+- Standard API plans do not imply unrestricted source-data redistribution.
+  Review the [data-usage policy](https://www.oilpriceapi.com/legal/data-usage).
 
-### Step 2: Open Add-on
+## Validate Locally
 
-1. Extensions → OilPriceAPI → Configure
-2. Enter your API key
-3. Click Save
+Node.js 20 or newer is required. The test suite runs `Code.gs` inside a mocked
+Apps Script runtime.
 
-### Step 3: Use Custom Functions
-
-In any cell, type:
-
-```
-=OILPRICE("BRENT_CRUDE_USD")
-```
-
-### Step 4: Fetch Multiple Prices
-
-1. Extensions → OilPriceAPI → Fetch Prices
-2. Select commodities
-3. Click Fetch
-4. Data appears in "Data" sheet
-
-## 🎨 Example Dashboards
-
-### Energy Price Comparison
-
-```
-| Commodity       | Latest Price | $/MMBtu  | 30-Day Change |
-|-----------------|--------------|----------|---------------|
-| Brent Crude     | $71.45       | $12.32   | +2.3%         |
-| WTI Crude       | $66.20       | $11.41   | +1.8%         |
-| Natural Gas (US)| $4.84        | $4.84    | -3.2%         |
-| UK Natural Gas  | £7.50        | $99.30   | +15.7%        |
+```bash
+npm test
+npm run validate
 ```
 
-### Historical Price Chart
+The suite covers the current flat latest-price response, missing/invalid keys,
+locked data, `429`, timeout, stale cache, empty and malformed responses,
+timestamp preservation, and the batch limit. See
+[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for manual Apps Script verification.
 
-1. Fetch past year data
-2. Insert → Chart
-3. Select date and price columns
-4. Choose line chart
+## Canonical Links
 
-## 💰 Pricing
+- [Product facts](https://api.oilpriceapi.com/product-facts.json)
+- [API documentation](https://docs.oilpriceapi.com)
+- [Pricing and dataset access](https://www.oilpriceapi.com/pricing)
+- [Data usage](https://www.oilpriceapi.com/legal/data-usage)
+- [Apps Script quotas](https://developers.google.com/apps-script/guides/services/quotas)
 
-**Free Tier:**
+## License
 
-- 100 requests (lifetime)
-- Real-time prices
-- 20+ commodities
-- Custom functions
-
-**Exploration ($15/mo):**
-
-- 10,000 requests/month
-- Historical data access
-- Pandas integration (Python SDK)
-- Email support
-
-**Production ($45/mo):**
-
-- 50,000 requests/month
-- Webhooks
-- Priority support
-- 99.9% uptime SLA
-
-[View Full Pricing](https://www.oilpriceapi.com/pricing?utm_source=google_sheets&utm_medium=addin&utm_campaign=pricing)
-
-## 🛠️ Development
-
-### Project Structure
-
-```
-google-sheets-energy-addin/
-├── Code.gs              # Main Apps Script code
-├── Sidebar.html         # Sidebar UI
-├── appsscript.json      # Project manifest
-├── README.md            # This file
-└── docs/
-    └── index.html       # GitHub Pages landing page
-```
-
-### Testing Locally
-
-1. Open Google Apps Script editor
-2. Make changes to Code.gs or Sidebar.html
-3. Click Run → test function
-4. Debug in Apps Script console
-
-### Deployment
-
-1. Click Deploy → New deployment
-2. Type: Add-on
-3. Description: Version X.X.X
-4. Click Deploy
-
-## 📚 Documentation
-
-- **API Reference**: https://docs.oilpriceapi.com
-- **Custom Functions Guide**: https://www.oilpriceapi.com/tools/sheets-functions
-- **Video Tutorials**: https://www.youtube.com/oilpriceapi
-- **Support**: support@oilpriceapi.com
-
-## 🐛 Known Issues
-
-- None currently
-
-## 🔒 Privacy & Security
-
-- API keys stored securely in user properties
-- No data shared with third parties
-- HTTPS encryption for all API calls
-- [Privacy Policy](https://oilpriceapi.com/privacy)
-- [Terms of Service](https://oilpriceapi.com/terms)
-
-## 📞 Support
-
-**Having issues?**
-
-- Email: support@oilpriceapi.com
-- GitHub Issues: https://github.com/OilpriceAPI/google-sheets-addin/issues
-- Documentation: https://www.oilpriceapi.com/tools/sheets-support
-
-## 🎓 Examples
-
-### Example 1: Build a Price Dashboard
-
-1. Create new sheet named "Dashboard"
-2. Add formulas:
-   ```
-   =OILPRICE("BRENT_CRUDE_USD")
-   =OILPRICE("WTI_USD")
-   =OILPRICE("NATURAL_GAS_USD")
-   ```
-3. Format as table
-4. Add conditional formatting for price changes
-
-### Example 2: Historical Analysis
-
-1. Extensions → OilPriceAPI → Fetch Historical
-2. Select "Brent Crude" and "Past Year"
-3. Data appears in "Historical" sheet
-4. Create line chart to visualize trends
-
-### Example 3: Energy Cost Calculator
-
-```
-A1: Commodity       | B1: =OILPRICE("NATURAL_GAS_USD")
-A2: Volume (MMBtu)  | B2: 1000
-A3: Total Cost      | B3: =B1*B2
-```
-
-## 🏆 Why OilPriceAPI?
-
-- **98% Less Cost**: Compared to Bloomberg Terminal
-- **20+ Commodities**: Brent, WTI, Natural Gas, Coal, and more
-- **20 Years of Data**: Daily historical prices since 2005
-- **Production-Ready**: Used by analysts, traders, and developers worldwide
-- **Free Tier**: 100 requests (lifetime), no credit card required
-
-## 📝 License
-
-MIT License - See LICENSE file for details
-
-## 🚀 Contributing
-
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create feature branch
-3. Submit pull request
-
-## 🔗 Related Tools
-
-- **Python SDK**: https://github.com/OilpriceAPI/python-sdk
-- **Node.js SDK**: https://github.com/OilpriceAPI/oilpriceapi-node
-- **Excel Add-in**: https://github.com/OilpriceAPI/excel-energy-addin
-
----
-
-**Built with ❤️ by OilPriceAPI**
-
-[Website](https://www.oilpriceapi.com) • [Pricing](https://www.oilpriceapi.com/pricing?utm_source=google_sheets&utm_medium=addin&utm_campaign=pricing) • [Docs](https://docs.oilpriceapi.com) • [Support](mailto:support@oilpriceapi.com)
+This repository is provided under the [MIT License](LICENSE).

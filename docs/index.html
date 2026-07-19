@@ -1,470 +1,123 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>
-      OilPriceAPI Google Sheets Add-on - Real-time Energy Price Data
-    </title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OilPriceAPI Google Sheets Reference</title>
     <meta
       name="description"
-      content="Official Google Sheets add-on for real-time oil, gas, and commodity price data. Custom functions, automatic conversions, and 20+ years of data. Free tier available."
+      content="Reference Google Apps Script formulas for source-timestamped OilPriceAPI records. Not published in Google Workspace Marketplace."
     />
-    <meta
-      name="keywords"
-      content="google sheets oil prices, commodity data sheets, energy price spreadsheet, oil tracker sheets, brent crude sheets"
-    />
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="OilPriceAPI Google Sheets Add-on" />
+    <meta property="og:title" content="OilPriceAPI Google Sheets Reference" />
     <meta
       property="og:description"
-      content="Real-time oil & commodity price data in Google Sheets"
+      content="Manually installed Apps Script reference for latest available and historical OilPriceAPI records."
     />
     <meta property="og:type" content="website" />
     <meta
       property="og:url"
       content="https://oilpriceapi.github.io/google-sheets-addin/"
     />
-
-    <!-- Plausible Analytics -->
-    <script
-      defer
-      data-domain="oilpriceapi.github.io"
-      src="https://plausible.io/js/script.js"
-    ></script>
-
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
+      * { box-sizing: border-box; }
       body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-          sans-serif;
-        line-height: 1.6;
-        color: #333;
-        background: linear-gradient(135deg, #34a853 0%, #0f9d58 100%);
+        margin: 0;
+        color: #202124;
+        background: #fff;
+        font: 16px/1.6 Arial, sans-serif;
       }
-
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
-      }
-
-      /* Hero Section */
-      .hero {
-        background: white;
-        border-radius: 10px;
-        padding: 60px 40px;
-        margin: 40px 0;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-        text-align: center;
-      }
-
-      .hero h1 {
-        font-size: 3em;
-        color: #2c3e50;
-        margin-bottom: 20px;
-      }
-
-      .hero .tagline {
-        font-size: 1.5em;
-        color: #7f8c8d;
-        margin-bottom: 30px;
-      }
-
-      .cta-buttons {
-        margin: 30px 0;
-      }
-
-      .btn {
+      header { border-bottom: 1px solid #dadce0; background: #f8f9fa; }
+      main, .inner { width: min(920px, calc(100% - 32px)); margin: 0 auto; }
+      .inner { padding: 42px 0 34px; }
+      main { padding: 34px 0 64px; }
+      h1 { max-width: 760px; margin: 0; font-size: 38px; line-height: 1.15; letter-spacing: 0; }
+      h2 { margin: 34px 0 10px; font-size: 21px; letter-spacing: 0; }
+      p { max-width: 760px; }
+      .status {
         display: inline-block;
-        padding: 15px 30px;
-        margin: 0 10px;
-        border-radius: 5px;
-        text-decoration: none;
-        font-weight: bold;
-        transition: transform 0.2s;
+        margin-bottom: 14px;
+        padding: 4px 8px;
+        border: 1px solid #f9ab00;
+        border-radius: 4px;
+        color: #7a4f01;
+        background: #fef7e0;
+        font-size: 13px;
+        font-weight: 700;
       }
-
-      .btn:hover {
-        transform: translateY(-2px);
-      }
-
-      .btn-primary {
-        background: #34a853;
-        color: white;
-      }
-
-      .btn-secondary {
-        background: #4285f4;
-        color: white;
-      }
-
-      /* Features Grid */
-      .features {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 30px;
-        margin: 40px 0;
-      }
-
-      .feature-card {
-        background: white;
-        border-radius: 10px;
-        padding: 30px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-      }
-
-      .feature-card h3 {
-        color: #34a853;
-        margin-bottom: 15px;
-      }
-
-      /* Code Example */
-      .code-section {
-        background: #2c3e50;
-        border-radius: 10px;
-        padding: 30px;
-        margin: 40px 0;
-        color: white;
-      }
-
-      .code-section h2 {
-        margin-bottom: 20px;
-      }
-
       pre {
-        background: #34495e;
-        padding: 20px;
-        border-radius: 5px;
         overflow-x: auto;
+        max-width: 760px;
+        padding: 16px;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        color: #e8eaed;
+        background: #202124;
       }
-
-      code {
-        color: #2ecc71;
-        font-family: "Courier New", monospace;
-      }
-
-      /* Stats */
-      .stats {
-        display: flex;
-        justify-content: space-around;
-        background: white;
-        border-radius: 10px;
-        padding: 40px;
-        margin: 40px 0;
-      }
-
-      .stat {
-        text-align: center;
-      }
-
-      .stat-number {
-        font-size: 3em;
-        font-weight: bold;
-        color: #34a853;
-      }
-
-      .stat-label {
-        color: #7f8c8d;
-        font-size: 1.1em;
-      }
-
-      /* Pricing */
-      .pricing {
-        background: white;
-        border-radius: 10px;
-        padding: 40px;
-        margin: 40px 0;
-      }
-
-      .pricing h2 {
-        text-align: center;
-        margin-bottom: 30px;
-        color: #2c3e50;
-      }
-
-      .pricing-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-      }
-
-      .pricing-card {
-        border: 2px solid #ecf0f1;
-        border-radius: 10px;
-        padding: 30px;
-        text-align: center;
-      }
-
-      .pricing-card.featured {
-        border-color: #34a853;
-        transform: scale(1.05);
-      }
-
-      .price {
-        font-size: 2.5em;
-        font-weight: bold;
-        color: #34a853;
-      }
-
-      /* Footer */
-      footer {
-        text-align: center;
-        padding: 40px;
-        color: white;
-      }
-
-      footer a {
-        color: white;
-        text-decoration: none;
-        border-bottom: 1px solid white;
-      }
-
-      .video-container {
-        position: relative;
-        padding-bottom: 56.25%;
-        height: 0;
-        overflow: hidden;
-        background: #000;
-        border-radius: 10px;
-        margin: 20px 0;
-      }
-
-      .video-container iframe {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 10px; border-bottom: 1px solid #dadce0; text-align: left; vertical-align: top; }
+      th { font-size: 13px; }
+      a { color: #1967d2; }
+      .links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 26px; }
+      @media (max-width: 600px) {
+        h1 { font-size: 30px; }
+        table, thead, tbody, tr, th, td { display: block; }
+        th { display: none; }
+        td { padding-left: 0; }
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <!-- Hero -->
-      <div class="hero">
-        <h1>📊 OilPriceAPI for Google Sheets</h1>
-        <p class="tagline">
-          Real-time oil & commodity price data in your spreadsheets
-        </p>
+    <header>
+      <div class="inner">
+        <div class="status">REFERENCE IMPLEMENTATION</div>
+        <h1>OilPriceAPI for Google Sheets</h1>
         <p>
-          Professional-grade API at <strong>98% less cost</strong> than
-          Bloomberg Terminal
+          Source-timestamped API records through manually installed Google Apps
+          Script formulas and sheet actions.
         </p>
-
-        <div class="cta-buttons">
-          <a href="#installation" class="btn btn-primary">Get Started Free</a>
-          <a
-            href="https://www.oilpriceapi.com/signup?utm_source=google_sheets&utm_medium=addin&utm_campaign=readme"
-            class="btn btn-secondary"
-            >Get API Key</a
-          >
-        </div>
-
-        <pre><code>=OILPRICE("BRENT_CRUDE_USD")</code></pre>
       </div>
-
-      <!-- Stats -->
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-number">3,000+</div>
-          <div class="stat-label">Installs (Target)</div>
-        </div>
-        <div class="stat">
-          <div class="stat-number">20+</div>
-          <div class="stat-label">Commodities</div>
-        </div>
-        <div class="stat">
-          <div class="stat-number">20</div>
-          <div class="stat-label">Years of Data</div>
-        </div>
-      </div>
-
-      <!-- Features -->
-      <div class="features">
-        <div class="feature-card">
-          <h3>⚡ Custom Functions</h3>
-          <p>Use =OILPRICE() formulas directly in cells. No coding required.</p>
-        </div>
-
-        <div class="feature-card">
-          <h3>📊 Sidebar UI</h3>
-          <p>
-            Fetch prices with a simple interface. Select commodities and go.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <h3>🔄 Auto-Convert</h3>
-          <p>Standardize all prices to $/MMBtu for easy comparison.</p>
-        </div>
-
-        <div class="feature-card">
-          <h3>📈 Historical Data</h3>
-          <p>Access 20+ years of daily price history for analysis.</p>
-        </div>
-
-        <div class="feature-card">
-          <h3>⚙️ Real-Time Updates</h3>
-          <p>Prices update every 15 minutes. Always current data.</p>
-        </div>
-
-        <div class="feature-card">
-          <h3>✅ Free Tier</h3>
-          <p>1,000 requests/month free. No credit card required.</p>
-        </div>
-      </div>
-
-      <!-- Code Example -->
-      <div class="code-section">
-        <h2>Quick Start</h2>
-        <pre><code>// Get latest Brent Crude price
-=OILPRICE("BRENT_CRUDE_USD")
-// Output: 71.45
-
-// Get 30 days of WTI history
-=OILPRICE_HISTORY("WTI_USD", 30)
-// Output: Array of [date, price] pairs
-
-// Convert to $/MMBtu for comparison
-=OILPRICE_CONVERT("NATURAL_GAS_GBP")
-// Output: 99.30 (automatically converted)
-
-// Or use the sidebar:
-Extensions → OilPriceAPI → Fetch Prices
-→ Select commodities
-→ Click Fetch
-→ Data appears in "Data" sheet
-</code></pre>
-      </div>
-
-      <!-- Installation Section -->
-      <div class="pricing" id="installation">
-        <h2>Installation</h2>
-
-        <div style="max-width: 600px; margin: 0 auto; text-align: left">
-          <h3 style="margin-bottom: 15px">
-            Coming Soon to Google Workspace Marketplace
-          </h3>
-          <p style="margin-bottom: 20px">
-            Currently in development. Expected launch: Early 2026
-          </p>
-
-          <h3 style="margin-bottom: 15px">
-            Manual Installation (For Developers)
-          </h3>
-          <ol style="padding-left: 20px; line-height: 2">
-            <li>Open any Google Sheet</li>
-            <li>Extensions → Apps Script</li>
-            <li>
-              Copy code from our
-              <a
-                href="https://github.com/OilpriceAPI/google-sheets-addin"
-                style="color: #34a853"
-                >GitHub repository</a
-              >
-            </li>
-            <li>Save and refresh your sheet</li>
-            <li>Extensions → OilPriceAPI → Configure</li>
-          </ol>
-        </div>
-      </div>
-
-      <!-- Use Cases -->
-      <div class="features">
-        <div class="feature-card">
-          <h3>📊 Energy Price Dashboard</h3>
-          <p>
-            Track Brent, WTI, Natural Gas side-by-side. Auto-update every 15
-            minutes.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <h3>📈 Historical Analysis</h3>
-          <p>
-            Chart price trends over months or years. Identify patterns and
-            correlations.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <h3>💰 Cost Calculator</h3>
-          <p>Calculate energy costs based on volume and commodity prices.</p>
-        </div>
-
-        <div class="feature-card">
-          <h3>🔍 Price Comparison</h3>
-          <p>
-            Compare energy sources in $/MMBtu. Make informed procurement
-            decisions.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <h3>📉 Market Research</h3>
-          <p>Export data for analysis in Python, R, or other tools.</p>
-        </div>
-
-        <div class="feature-card">
-          <h3>⚡ Trading Alerts</h3>
-          <p>Set up conditional formatting to highlight price changes.</p>
-        </div>
-      </div>
-
-      <!-- Resources -->
-      <div class="features">
-        <div class="feature-card">
-          <h3>📚 Documentation</h3>
-          <p><a href="https://docs.oilpriceapi.com">API Reference</a></p>
-          <p>
-            <a href="https://www.oilpriceapi.com/tools/sheets-support"
-              >Support Guide</a
-            >
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <h3>🐙 GitHub</h3>
-          <p>
-            <a href="https://github.com/OilpriceAPI/google-sheets-addin"
-              >Source Code</a
-            >
-          </p>
-          <p>
-            <a href="https://github.com/OilpriceAPI/google-sheets-addin/issues"
-              >Report Issues</a
-            >
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <h3>💬 Support</h3>
-          <p><a href="mailto:support@oilpriceapi.com">Email Support</a></p>
-          <p>
-            <a
-              href="https://www.oilpriceapi.com/pricing?utm_source=google_sheets&utm_medium=addin&utm_campaign=pricing"
-              >View Pricing</a
-            >
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <footer>
-      <p>Built with ❤️ by <a href="https://oilpriceapi.com">OilPriceAPI</a></p>
+    </header>
+    <main>
+      <h2>Publication status</h2>
       <p>
-        <a href="https://github.com/OilpriceAPI/google-sheets-addin">GitHub</a>
-        • <a href="https://oilpriceapi.com/privacy">Privacy</a> •
-        <a href="https://oilpriceapi.com/terms">Terms</a>
+        This project is not currently published in the Google Workspace
+        Marketplace. Install it only by reviewing and copying the tagged source
+        into a test spreadsheet's Apps Script project.
       </p>
-    </footer>
+
+      <h2>First formula</h2>
+      <pre><code>=OILPRICE("WTI_USD")</code></pre>
+      <p>
+        The formula returns the numeric value from the latest available source
+        record. The batch action writes its currency, unit, source label, source
+        timestamp, and retrieval timestamp to a `Data` sheet.
+      </p>
+
+      <h2>Runtime behavior</h2>
+      <table>
+        <thead><tr><th>Surface</th><th>Behavior</th></tr></thead>
+        <tbody>
+          <tr><td>Latest price</td><td>Five-minute user cache; strict price, currency, unit, and timestamp validation.</td></tr>
+          <tr><td>History</td><td>Versioned lookback endpoint; source timestamp and price rows; one-hour user cache.</td></tr>
+          <tr><td>Access errors</td><td>Actionable recovery for missing/invalid keys, locked datasets, quota limits, and timeouts.</td></tr>
+          <tr><td>Successful response drift</td><td>Empty or malformed records fail instead of producing defaults.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Product facts</h2>
+      <p>
+        Dataset access, limits, catalog coverage, freshness, and data rights can
+        change independently of this source release. Use the versioned contract
+        and current documentation.
+      </p>
+      <div class="links">
+        <a href="https://github.com/OilpriceAPI/google-sheets-addin">Source and setup</a>
+        <a href="https://api.oilpriceapi.com/product-facts.json">Product facts JSON</a>
+        <a href="https://docs.oilpriceapi.com">API documentation</a>
+        <a href="https://www.oilpriceapi.com/auth/signup">Key management</a>
+        <a href="https://www.oilpriceapi.com/pricing">Dataset access</a>
+        <a href="https://www.oilpriceapi.com/legal/data-usage">Data usage</a>
+      </div>
+    </main>
   </body>
 </html>

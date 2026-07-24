@@ -74,13 +74,31 @@ script passes the key to `curl` through standard input and never prints it.
 
 ## Account-bound release gates
 
-These cannot be proven from the source checkout and remain required:
+Completed on 2026-07-24:
 
-- push to the publisher-owned standalone Apps Script project;
+- created the publisher-owned standalone Apps Script project
+  `OilPriceAPI for Sheets`;
+- pushed exactly `Code.gs`, `Sidebar.html`, `FetchDialog.html`, and
+  `appsscript.json`;
+- created immutable Apps Script versions `1` and `2`;
+- configured the `apps-script-production` GitHub environment for `main` only;
+- stored clasp credentials as environment secrets;
+- ran the production release workflow successfully:
+  `https://github.com/OilpriceAPI/google-sheets-addin/actions/runs/30116108120`.
+
+Production release target:
+
+- Script ID:
+  `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`
+- Current immutable version: `2`
+- Apps Script editor:
+  `https://script.google.com/d/1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb/edit`
+
+Remaining Google account/Marketplace gates:
+
 - link that script to the standard Google Cloud project;
 - install and smoke the Editor add-on test deployment in a clean Sheet;
 - capture at least one real 1280x800 screenshot;
-- create the immutable Apps Script version;
 - configure OAuth and Marketplace SDK with the Script ID and version;
 - complete any required OAuth verification and submit the public listing.
 

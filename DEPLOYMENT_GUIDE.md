@@ -7,8 +7,13 @@ test installation, screenshots, and submission require the publisher account.
 ## Current release gate
 
 - Runtime version: `1.2.0`
+- Production Apps Script ID:
+  `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`
+- Current immutable Apps Script version: `2`
+- GitHub production release workflow:
+  `https://github.com/OilpriceAPI/google-sheets-addin/actions/workflows/apps-script-release.yml`
 - Marketplace status: publication pending
-- Local runtime/deployment/asset checks: automated by `npm run validate`
+- Runtime push/version and local deployment checks: complete
 - Required before submission: real Editor add-on test receipt and at least one
   real 1280x800 screenshot
 

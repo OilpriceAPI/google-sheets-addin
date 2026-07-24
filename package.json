@@ -1,15 +1,28 @@
 {
-  "name": "oilpriceapi-google-sheets-reference",
-  "version": "1.1.0",
+  "name": "oilpriceapi-google-sheets-addin",
+  "version": "1.2.0",
   "private": true,
-  "description": "Reference Google Apps Script integration for OilPriceAPI",
+  "description": "Google Sheets Editor add-on for source-aware OilPriceAPI formulas",
   "license": "MIT",
   "scripts": {
     "test": "node --test test/runtime.test.js test/public-claims.test.js",
     "test:live": "node test/live-smoke.js",
-    "validate": "node test/validate_code.js && node --test test/runtime.test.js test/public-claims.test.js && ./scripts/scan-secrets.sh"
+    "assets": "node scripts/generate-marketplace-assets.js",
+    "verify:assets": "node scripts/verify-marketplace-assets.js",
+    "verify:deploy": "node scripts/verify-deploy-package.js",
+    "validate": "node test/validate_code.js && node --test test/runtime.test.js test/public-claims.test.js && node scripts/verify-deploy-package.js && node scripts/verify-marketplace-assets.js && ./scripts/scan-secrets.sh",
+    "clasp:login": "clasp login",
+    "clasp:configure": "node scripts/configure-clasp.js",
+    "clasp:status": "clasp status",
+    "deploy:push": "npm run validate && clasp push",
+    "deploy:version": "clasp version",
+    "deploy:list": "clasp deployments"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@google/clasp": "3.3.0",
+    "sharp": "0.35.3"
   }
 }

@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>OilPriceAPI Google Sheets Reference</title>
+    <title>OilPriceAPI for Google Sheets</title>
     <meta
       name="description"
-      content="Reference Google Apps Script formulas for source-timestamped OilPriceAPI records. Not published in Google Workspace Marketplace."
+      content="Source-aware OilPriceAPI formulas for Google Sheets. Marketplace publication pending."
     />
-    <meta property="og:title" content="OilPriceAPI Google Sheets Reference" />
+    <meta property="og:title" content="OilPriceAPI for Google Sheets" />
     <meta
       property="og:description"
-      content="Manually installed Apps Script reference for latest available and historical OilPriceAPI records."
+      content="Deployment-ready Editor add-on with price, source, timestamp, unit, freshness, catalog, and allowlisted API formulas."
     />
     <meta property="og:type" content="website" />
     <meta
@@ -69,28 +69,31 @@
   <body>
     <header>
       <div class="inner">
-        <div class="status">REFERENCE IMPLEMENTATION</div>
+        <div class="status">MARKETPLACE SUBMISSION CANDIDATE</div>
         <h1>OilPriceAPI for Google Sheets</h1>
         <p>
-          Source-timestamped API records through manually installed Google Apps
-          Script formulas and sheet actions.
+          Source-aware energy data formulas with price, unit, timestamp,
+          freshness, catalog, and allowlisted API tables.
         </p>
       </div>
     </header>
     <main>
       <h2>Publication status</h2>
       <p>
-        This project is not currently published in the Google Workspace
-        Marketplace. Install it only by reviewing and copying the tagged source
-        into a test spreadsheet's Apps Script project.
+        Google Workspace Marketplace publication is pending. The Editor add-on
+        runtime and deployment package are ready for account-bound Apps Script,
+        OAuth, test-deployment, and Marketplace submission steps.
       </p>
 
       <h2>First formula</h2>
-      <pre><code>=OILPRICE("WTI_USD")</code></pre>
+      <pre><code>=OILPRICE_PRICE("WTI_USD")
+=OILPRICE_INFO("WTI_USD")
+=OILPRICE_STATUS("WTI_USD")
+=OILPRICE_UNIT("WTI_USD")</code></pre>
       <p>
-        The formula returns the numeric value from the latest available source
-        record. The batch action writes its currency, unit, source label, source
-        timestamp, and retrieval timestamp to a `Data` sheet.
+        The price formula returns the numeric value from the latest available
+        API record. Companion formulas expose its currency, unit, source,
+        source timestamp, and freshness without changing the numeric contract.
       </p>
 
       <h2>Runtime behavior</h2>
@@ -98,6 +101,8 @@
         <thead><tr><th>Surface</th><th>Behavior</th></tr></thead>
         <tbody>
           <tr><td>Latest price</td><td>Five-minute user cache; strict price, currency, unit, and timestamp validation.</td></tr>
+          <tr><td>Excel parity</td><td>PRICE, GET, CODES, STATUS, UNIT, and INFO equivalents using Sheets-compatible underscore names.</td></tr>
+          <tr><td>Generic API table</td><td>Reviewed endpoint catalog, credential-query rejection, and shape-aware table rendering.</td></tr>
           <tr><td>History</td><td>Versioned lookback endpoint; source timestamp and price rows; one-hour user cache.</td></tr>
           <tr><td>Access errors</td><td>Actionable recovery for missing/invalid keys, locked datasets, quota limits, and timeouts.</td></tr>
           <tr><td>Successful response drift</td><td>Empty or malformed records fail instead of producing defaults.</td></tr>

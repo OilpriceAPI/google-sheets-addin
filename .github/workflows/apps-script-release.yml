@@ -1,0 +1,35 @@
+name: Create Apps Script release version
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_description:
+        description: Immutable Apps Script version description
+        required: true
+        default: OilPriceAPI for Sheets release candidate
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: apps-script-production
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run validate
+      - name: Configure clasp credentials
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          CLASP_JSON: ${{ secrets.CLASP_JSON }}
+        run: |
+          node -e 'const fs=require("node:fs"); if(!process.env.CLASPRC_JSON||!process.env.CLASP_JSON) throw new Error("Missing clasp secrets"); fs.writeFileSync(process.env.HOME+"/.clasprc.json",process.env.CLASPRC_JSON,{mode:0o600}); fs.writeFileSync(".clasp.json",process.env.CLASP_JSON,{mode:0o600});'
+      - name: Push reviewed runtime files
+        run: npx clasp push --force
+      - name: Create immutable Editor add-on version
+        run: npx clasp version "${{ inputs.release_description }}"

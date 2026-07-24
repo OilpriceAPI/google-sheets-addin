@@ -14,17 +14,24 @@ function read(relativePath) {
 function validateFiles() {
   const required = [
     ".github/workflows/github-pages.yml",
+    ".github/workflows/apps-script-release.yml",
     ".github/workflows/validate.yml",
+    ".claspignore",
     "Code.gs",
     "DEPLOYMENT_GUIDE.md",
     "FetchDialog.html",
     "LICENSE",
+    "MARKETPLACE_LISTING.md",
     "README.md",
     "Sidebar.html",
     "appsscript.json",
     "docs/index.html",
     "package.json",
     "scripts/scan-secrets.sh",
+    "scripts/configure-clasp.js",
+    "scripts/generate-marketplace-assets.js",
+    "scripts/verify-deploy-package.js",
+    "scripts/verify-marketplace-assets.js",
     "test/public-claims.test.js",
     "test/runtime.test.js",
   ];
@@ -53,6 +60,14 @@ function validateCode() {
     "FUTURES_PRICE",
     "FUTURES_CURVE",
     "RIG_COUNT",
+    "OILPRICE_PRICE",
+    "OILPRICE_GET",
+    "OILPRICE_CODES",
+    "OILPRICE_STATUS",
+    "OILPRICE_UNIT",
+    "OILPRICE_INFO",
+    "getLastDiagnostic",
+    "onInstall",
   ];
   for (const name of requiredFunctions) {
     assert.match(code, new RegExp(`function ${name}\\(`), `missing ${name}`);
@@ -67,6 +82,9 @@ function validateCode() {
   assert.match(code, /function getCachedValue_\(/);
   assert.match(code, /sourceTimestamp_/);
   assert.match(code, /MAX_BATCH_CODES = 25/);
+  assert.match(code, /createAddonMenu/);
+  assert.match(code, /ENDPOINT_CATALOG/);
+  assert.match(code, /SENSITIVE_QUERY_KEYS/);
 }
 
 function validateUi() {
@@ -77,7 +95,8 @@ function validateUi() {
   assert.doesNotMatch(sidebar, /\.getApiKey\(\)/);
   assert.match(sidebar, /\.deleteApiKey\(\)/);
   assert.match(sidebar, /type="password"/);
-  assert.match(sidebar, /not currently published in the Google Workspace Marketplace/i);
+  assert.match(sidebar, /Marketplace publication (?:is )?pending/i);
+  assert.match(sidebar, /\.getLastDiagnostic\(\)/);
   assert.match(dialog, /fetchLatestPrices\(codes\)/);
   assert.match(dialog, /google\.script\.host\.close/);
 
@@ -95,6 +114,9 @@ function validateManifest() {
   assert.deepEqual(manifest.oauthScopes, [
     "https://www.googleapis.com/auth/spreadsheets.currentonly",
     "https://www.googleapis.com/auth/script.external_request",
+  ]);
+  assert.deepEqual(manifest.urlFetchWhitelist, [
+    "https://api.oilpriceapi.com/",
   ]);
 }
 

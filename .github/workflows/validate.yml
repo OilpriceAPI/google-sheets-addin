@@ -19,4 +19,6 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - run: npm run assets
+      - run: git diff --exit-code -- assets/marketplace
       - run: npm run validate

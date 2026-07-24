@@ -14,7 +14,7 @@
     "clasp:login": "clasp login",
     "clasp:configure": "node scripts/configure-clasp.js",
     "clasp:status": "clasp status",
-    "deploy:push": "npm run validate && clasp push",
+    "deploy:push": "npm run validate && clasp push --force",
     "deploy:version": "clasp version",
     "deploy:list": "clasp deployments"
   },

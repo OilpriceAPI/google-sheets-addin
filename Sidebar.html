@@ -135,10 +135,20 @@
       }
 
       .key-state,
-      .usage {
+      .usage,
+      .diagnostic {
         margin-top: 8px;
         color: #5f6368;
         font-size: 12px;
+      }
+
+      code {
+        display: block;
+        margin: 5px 0;
+        overflow-x: auto;
+        white-space: nowrap;
+        color: #3c4043;
+        font: 11px/1.4 monospace;
       }
 
       .links {
@@ -154,9 +164,9 @@
   </head>
   <body>
     <h1>OilPriceAPI</h1>
-    <div class="subtle">Google Sheets reference implementation</div>
+    <div class="subtle">Source-aware formulas for Google Sheets</div>
     <div class="notice">
-      Not currently published in the Google Workspace Marketplace.
+      Google Workspace Marketplace publication is pending.
       Dataset access and freshness depend on the API key and source.
     </div>
 
@@ -189,6 +199,22 @@
         Build reference USD/MMBtu sheet
       </button>
       <div id="usageInfo" class="usage"></div>
+    </div>
+
+    <div class="section">
+      <h2>Formula quickstart</h2>
+      <code>=OILPRICE_PRICE("WTI_USD")</code>
+      <code>=OILPRICE_INFO("WTI_USD")</code>
+      <code>=OILPRICE_STATUS("WTI_USD")</code>
+      <code>=OILPRICE_UNIT("WTI_USD")</code>
+      <code>=OILPRICE_CODES()</code>
+      <code>=OILPRICE_GET("/v1/prices/latest","by_code=WTI_USD")</code>
+    </div>
+
+    <div class="section">
+      <h2>Last request diagnostic</h2>
+      <div id="diagnostic" class="diagnostic">No request recorded.</div>
+      <button class="secondary full" onclick="loadDiagnostic()">Refresh diagnostic</button>
     </div>
 
     <div class="section links">
@@ -279,6 +305,7 @@
         google.script.run
           .withSuccessHandler(function (result) {
             showStatus(result.message, result.success ? "success" : "error");
+            loadDiagnostic();
           })
           .withFailureHandler(function (error) {
             showStatus(error.message, "error");
@@ -306,6 +333,29 @@
           .getUserInfo();
       }
 
+      function loadDiagnostic() {
+        google.script.run
+          .withSuccessHandler(function (diagnostic) {
+            const element = document.getElementById("diagnostic");
+            if (!diagnostic) {
+              element.textContent = "No request recorded.";
+              return;
+            }
+            const parts = [
+              diagnostic.code,
+              diagnostic.httpStatus ? "HTTP " + diagnostic.httpStatus : "",
+              diagnostic.durationMs + " ms",
+              diagnostic.endpoint,
+              diagnostic.at
+            ].filter(Boolean);
+            element.textContent = parts.join(" / ");
+          })
+          .withFailureHandler(function (error) {
+            showStatus(error.message, "error");
+          })
+          .getLastDiagnostic();
+      }
+
       function showFetchPrices() {
         google.script.run.showFetchDialog();
       }
@@ -323,6 +373,7 @@
       }
 
       loadKeyStatus();
+      loadDiagnostic();
     </script>
   </body>
 </html>

@@ -69,6 +69,7 @@ const context = {
   String,
   UrlFetchApp: { fetch: fetchWithCurl },
   console,
+  decodeURIComponent,
   encodeURIComponent,
 };
 vm.createContext(context);
@@ -77,6 +78,23 @@ new vm.Script(code, { filename: "Code.gs" }).runInContext(context);
 const price = context.OILPRICE("WTI_USD");
 assert.ok(Number.isFinite(price) && price > 0);
 assert.equal(context.OILPRICE("WTI_USD"), price, "cached formula value changed");
+assert.equal(context.OILPRICE_PRICE("WTI_USD"), price);
+
+const unit = context.OILPRICE_UNIT("WTI_USD");
+assert.ok(typeof unit === "string" && unit.includes("/") && !unit.startsWith("#"));
+
+const info = context.OILPRICE_INFO("WTI_USD");
+assert.ok(Array.isArray(info) && info.length > 1);
+const infoMap = Object.fromEntries(info.slice(1));
+assert.equal(infoMap.price, price);
+assert.ok(typeof infoMap.source_timestamp === "string");
+assert.ok(Number.isFinite(new Date(infoMap.source_timestamp).getTime()));
+
+const latestTable = context.OILPRICE_GET(
+  "/v1/prices/latest",
+  "by_code=WTI_USD",
+);
+assert.ok(Array.isArray(latestTable) && latestTable.length > 1);
 
 const history = context.OILPRICE_HISTORY("WTI_USD", 1);
 assert.ok(Array.isArray(history) && history.length > 0);
@@ -84,5 +102,5 @@ assert.ok(Number.isFinite(new Date(history[0][0]).getTime()));
 assert.ok(Number.isFinite(history[0][1]));
 
 console.log(
-  `Production formula smoke passed: latest=${price}, history_records=${history.length}, source_timestamp=${history[history.length - 1][0]}`,
+  `Production formula smoke passed: latest=${price}, unit=${unit}, info_source_timestamp=${infoMap.source_timestamp}, history_records=${history.length}`,
 );

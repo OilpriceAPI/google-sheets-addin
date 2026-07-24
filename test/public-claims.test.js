@@ -11,6 +11,7 @@ const PUBLIC_FILES = [
   "Code.gs",
   "Sidebar.html",
   "FetchDialog.html",
+  "MARKETPLACE_LISTING.md",
   "docs/index.html",
   "package.json",
   "test/README.md",
@@ -20,7 +21,7 @@ test("public surfaces identify Marketplace status and canonical facts", () => {
   const text = PUBLIC_FILES.map((file) =>
     fs.readFileSync(path.join(ROOT, file), "utf8"),
   ).join("\n");
-  assert.match(text, /not (?:currently )?published in (?:the )?Google Workspace Marketplace/i);
+  assert.match(text, /Google Workspace Marketplace publication (?:is )?pending/i);
   assert.match(text, /https:\/\/api\.oilpriceapi\.com\/product-facts\.json/);
 });
 

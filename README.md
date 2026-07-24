@@ -1,117 +1,114 @@
-# OilPriceAPI Google Sheets Reference
+# OilPriceAPI for Google Sheets
 
-Source-timestamped OilPriceAPI records in Google Sheets through a manually
-installed Apps Script project.
+Deployment-ready Editor add-on for source-aware OilPriceAPI formulas in Google
+Sheets.
 
-> This is a reference implementation. It is not currently published in the
-> Google Workspace Marketplace. Do not search for or install an add-on that
-> claims to be this repository.
+> Google Workspace Marketplace publication is pending. The source and release
+> package are ready; account-bound Apps Script, OAuth, test-deployment, and
+> Marketplace submission steps remain.
 
 Dataset access, history, freshness, and limits depend on the API key, source,
 and account entitlement. Review the
 [versioned product-facts contract](https://api.oilpriceapi.com/product-facts.json)
 before publishing derived product claims.
 
-## Install In A Test Sheet
+## Excel-equivalent formulas
 
-1. Create a blank Google Sheet.
-2. Open **Extensions > Apps Script**.
-3. Replace the default script with [Code.gs](Code.gs).
-4. Add HTML files named `Sidebar` and `FetchDialog`, using
-   [Sidebar.html](Sidebar.html) and [FetchDialog.html](FetchDialog.html).
-5. Enable the manifest in Project Settings and replace it with
-   [appsscript.json](appsscript.json).
-6. Save, return to the sheet, and reload it.
-7. Open **OilPriceAPI > Configure API Key** and save an API key.
+Google Sheets custom-function names cannot contain a dot. These underscore
+names are the direct equivalents of the Excel add-in surface:
 
-Create or manage keys at
-[oilpriceapi.com/auth/signup](https://www.oilpriceapi.com/auth/signup?utm_source=google_sheets&utm_medium=reference&utm_campaign=readme).
-The script stores the key in Apps Script user properties and never writes it to
-a cell, URL, log, or browser-side HTML.
+| Google Sheets | Excel | Result |
+| --- | --- | --- |
+| `OILPRICE_PRICE(code)` | `OILPRICE.PRICE(code)` | Latest numeric API value |
+| `OILPRICE_GET(path, query)` | `OILPRICE.GET(path, query)` | Allowlisted API table |
+| `OILPRICE_CODES()` | `OILPRICE.CODES()` | Available commodity-code table |
+| `OILPRICE_STATUS(code)` | `OILPRICE.STATUS(code)` | API freshness state |
+| `OILPRICE_UNIT(code)` | `OILPRICE.UNIT(code)` | Currency/unit |
+| `OILPRICE_INFO(code)` | `OILPRICE.INFO(code)` | Source, timestamp, unit, and freshness table |
 
-## Verify One Formula
-
-Enter this formula in a cell:
+Examples:
 
 ```text
-=OILPRICE("WTI_USD")
+=OILPRICE_PRICE("WTI_USD")
+=OILPRICE_INFO("WTI_USD")
+=OILPRICE_GET("/v1/prices/latest", "by_code=WTI_USD")
 ```
 
-The cell returns the numeric value from the latest available source record. To
-inspect its source, unit, currency, and timestamp, use **OilPriceAPI > Fetch
-Latest Available Prices**. The resulting `Data` sheet separates `Source
-Timestamp` from the client-side `Retrieved At` timestamp.
+The original `OILPRICE(code)` formula remains supported for existing sheets.
 
-## Functions
+## Additional Sheets formulas
 
-| Function | Executable behavior | Reference cache |
+| Function | Behavior | Cache |
 | --- | --- | --- |
-| `OILPRICE(code)` | Numeric latest available price | 5 minutes |
-| `OILPRICE_HISTORY(code, days)` | `[source timestamp, price]` rows; `days` selects a versioned lookback endpoint from 1 through 365 | 1 hour |
-| `OILPRICE_CONVERT(code)` | Reference USD/MMBtu conversion for codes in `COMMODITY_MAP` | Shares latest-price cache |
-| `BUNKER_PRICE(port, fuel)` | Numeric Data Connector price | None |
-| `BUNKER_PORT_PRICES(port)` | Fuel, price, currency, unit, and source timestamp rows | None |
-| `FUTURES_PRICE(contract)` | Numeric first contract price | 5 minutes |
+| `OILPRICE(code)` | Backward-compatible numeric latest price | 5 minutes |
+| `OILPRICE_HISTORY(code, days)` | Source timestamp and price rows | 1 hour |
+| `OILPRICE_CONVERT(code)` | Reference USD/MMBtu conversion for documented mappings | Latest-price cache |
+| `BUNKER_PRICE(port, fuel)` | Numeric Data Connector bunker price | None |
+| `BUNKER_PORT_PRICES(port)` | Bunker-price table with units and timestamp | None |
+| `FUTURES_PRICE(contract)` | Numeric first-contract price | 5 minutes |
 | `FUTURES_CURVE(contract)` | Month, price, and change rows | 5 minutes |
-| `RIG_COUNT(type)` | Oil, gas, total, or a source-dated table | 1 hour |
+| `RIG_COUNT(type)` | Oil, gas, total, or source-dated table | 1 hour |
 
-The dialog contains example commodity codes, not a guarantee of universal
-catalog access. Check the current
-[commodity catalog](https://www.oilpriceapi.com/commodities) and your account
-entitlements.
+## Runtime and security contract
 
-Google Sheets controls formula recalculation. This script does not poll in the
-background. A recalculation inside a cache window returns the cached source
-record; a stale or malformed cache envelope is discarded before a new request.
+- API keys are stored in per-user Apps Script properties.
+- The sidebar receives only configured/not-configured state; it never reads the
+  stored key into browser-side HTML.
+- Generic GET calls are restricted to the same reviewed endpoint catalog as
+  the Excel preview.
+- Credential-shaped query keys are rejected before any network request.
+- Missing, invalid, locked, rate-limited, timed-out, malformed, and empty
+  responses fail with worksheet-readable recovery text.
+- Latest-request diagnostics contain endpoint path, status, duration,
+  timestamp, and optional request ID—never the API key or query string.
+- The manifest requests only current-sheet and external-request scopes and
+  restricts URL fetches to `api.oilpriceapi.com`.
 
-## Failure Behavior
+## Validate locally
 
-All network paths use the same response validator:
-
-- Missing key links to key management.
-- `401` identifies an invalid or revoked key.
-- `402` and `403` link to current dataset access options.
-- `429` explains that the rate or quota window must recover before retrying.
-- Fetch exceptions expose timeout recovery without logging credentials.
-- Empty or malformed successful responses fail instead of returning zero,
-  guessed currency or units, fallback exchange rates, or the current time.
-- Batch refresh accepts at most 25 selected codes per request.
-
-## Conversion Scope
-
-`OILPRICE_CONVERT` is a reference calculation. Its heat-content factors are
-defined in `Code.gs`, and its currency conversion requires API-provided
-`GBP_USD` and `EUR_USD` records when needed. It does not use fallback exchange
-rates. Verify the factor and source unit for your analytical or commercial use.
-
-## Security
-
-- Keys are stored in per-user Apps Script properties, not encrypted by this
-  repository.
-- The sidebar receives only `{ configured: true|false }`; it cannot load the
-  stored value back into the browser.
-- Delete the key from the sidebar before sharing or transferring a test sheet.
-- Do not place a key in cells, script source, screenshots, URLs, logs, issues,
-  or analytics.
-- Standard API plans do not imply unrestricted source-data redistribution.
-  Review the [data-usage policy](https://www.oilpriceapi.com/legal/data-usage).
-
-## Validate Locally
-
-Node.js 20 or newer is required. The test suite runs `Code.gs` inside a mocked
-Apps Script runtime.
+Node.js 20 or newer is required.
 
 ```bash
+npm ci
 npm test
 npm run validate
 ```
 
-The suite covers the current flat latest-price response, missing/invalid keys,
-locked data, `429`, timeout, stale cache, empty and malformed responses,
-timestamp preservation, and the batch limit. See
-[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for manual Apps Script verification.
+The validation suite covers formula parity, credential lifecycle, negative
+auth/entitlement/quota paths, response-shape drift, stale cache, source
+metadata, endpoint/query allowlisting, deployment packaging, Marketplace asset
+dimensions, public claims, and secret scanning.
 
-## Canonical Links
+For a production API smoke:
+
+```bash
+OILPRICEAPI_KEY="your non-customer test key" npm run test:live
+```
+
+The live-smoke script does not print the key.
+
+## Deploy
+
+Follow [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md). The short operator sequence
+after the Apps Script project exists is:
+
+```bash
+npm ci
+npm run clasp:login
+read -r "OPA_SCRIPT_ID?Apps Script ID: "
+npm run clasp:configure -- "$OPA_SCRIPT_ID"
+npm run deploy:push
+npm run deploy:version -- "OilPriceAPI for Sheets 1.2.0"
+```
+
+Editor add-on publication uses the Apps Script **script ID and version
+number**, not a web-app deployment ID. Test the Editor add-on before entering
+that version in the Marketplace SDK.
+
+Prepared listing copy, scope justifications, required screenshot shots, and
+generated assets are in [MARKETPLACE_LISTING.md](MARKETPLACE_LISTING.md).
+
+## Canonical links
 
 - [Product facts](https://api.oilpriceapi.com/product-facts.json)
 - [API documentation](https://docs.oilpriceapi.com)
@@ -121,4 +118,4 @@ timestamp preservation, and the batch limit. See
 
 ## License
 
-This repository is provided under the [MIT License](LICENSE).
+MIT

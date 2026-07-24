@@ -1,0 +1,7 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">OilPriceAPI for Sheets</title>
+  <rect width="128" height="128" rx="22" fill="#0b57d0"/>
+  <path d="M64 15S47 38 47 54c0 13 8 23 17 23s17-10 17-23C81 38 64 15 64 15Z" fill="#fff"/>
+  <path d="M28 111h72" stroke="#9ec3ff" stroke-width="5" stroke-linecap="round"/>
+  <path d="M34 101l15-12 14 6 27-17" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

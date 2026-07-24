@@ -61,6 +61,7 @@ function createHarness() {
         return {
           getResponseCode: () => next.status,
           getContentText: () => next.body,
+          getHeaders: () => next.headers || {},
         };
       },
     },
@@ -79,8 +80,8 @@ function createHarness() {
     cache,
     context,
     properties,
-    queue(status, body) {
-      responses.push({ status, body });
+    queue(status, body, headers = {}) {
+      responses.push({ status, body, headers });
     },
     queueError(error) {
       responses.push(error);
@@ -183,6 +184,304 @@ test("OILPRICE supports the production flat record and caches its source data", 
   );
 });
 
+test("Excel-equivalent price, status, unit, and info formulas preserve source context", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(
+    200,
+    latestBody({
+      currency: "GBp",
+      unit: "therm",
+      source: "exchange",
+      data_status: "stale",
+      stale: true,
+      age_days: 2,
+      formatted: "81.78 GBp/therm",
+      collected_at: "2026-07-19T14:11:00.000Z",
+      metadata: { source_description: "Fixture exchange" },
+    }),
+    { "x-request-id": "request-fixture-123" },
+  );
+
+  assert.equal(harness.context.OILPRICE_PRICE("wti_usd"), 81.78);
+  assert.equal(harness.context.OILPRICE_STATUS("WTI_USD"), "stale");
+  assert.equal(harness.context.OILPRICE_UNIT("WTI_USD"), "GBp/therm");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.context.OILPRICE_INFO("WTI_USD"))),
+    [
+      ["Field", "Value"],
+      ["code", "WTI_USD"],
+      ["price", 81.78],
+      ["currency", "GBp"],
+      ["unit", "therm"],
+      ["formatted", "81.78 GBp/therm"],
+      ["source", "exchange"],
+      ["source_description", "Fixture exchange"],
+      ["source_timestamp", "2026-07-19T14:10:50.373Z"],
+      ["collected_at", "2026-07-19T14:11:00.000Z"],
+      ["data_status", "stale"],
+      ["stale", true],
+      ["age_days", 2],
+    ],
+  );
+  assert.equal(harness.requests.length, 1);
+
+  const diagnostic = harness.context.getLastDiagnostic();
+  assert.equal(diagnostic.code, "OK");
+  assert.equal(diagnostic.httpStatus, 200);
+  assert.equal(diagnostic.endpoint, "/v1/prices/latest");
+  assert.equal(diagnostic.requestId, "request-fixture-123");
+  assert.equal(JSON.stringify(diagnostic).includes("test-key-not-a-secret"), false);
+  assert.equal(JSON.stringify(diagnostic).includes("by_code"), false);
+});
+
+test("OILPRICE_GET and OILPRICE_CODES match the Excel allowlisted table contract", () => {
+  const getHarness = createHarness();
+  configure(getHarness);
+  getHarness.queue(
+    200,
+    JSON.stringify({
+      status: "success",
+      data: {
+        prices: [
+          {
+            code: "WTI_USD",
+            price: "81.78",
+            currency: "USD",
+            unit: "barrel",
+          },
+        ],
+      },
+    }),
+  );
+  assert.deepEqual(
+    JSON.parse(
+      JSON.stringify(
+        getHarness.context.OILPRICE_GET(
+          "/v1/prices/latest",
+          "by_code=WTI_USD",
+        ),
+      ),
+    ),
+    [
+      ["code", "price", "currency", "unit"],
+      ["WTI_USD", 81.78, "USD", "barrel"],
+    ],
+  );
+
+  const codesHarness = createHarness();
+  configure(codesHarness);
+  codesHarness.queue(
+    200,
+    JSON.stringify({
+      status: "success",
+      data: {
+        commodities: [
+          { code: "WTI_USD", name: "WTI", category: "crude" },
+        ],
+      },
+    }),
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(codesHarness.context.OILPRICE_CODES())),
+    [
+      ["Code", "Name", "Category"],
+      ["WTI_USD", "WTI", "crude"],
+    ],
+  );
+});
+
+test("OILPRICE_GET rejects unsupported endpoints and credential-shaped query keys before fetch", () => {
+  const harness = createHarness();
+  configure(harness);
+
+  assert.deepEqual(
+    JSON.parse(
+      JSON.stringify(harness.context.OILPRICE_GET("/v1/users/me", "")),
+    ),
+    [
+      [
+        "#UNSUPPORTED_ENDPOINT",
+        "Use a supported OilPriceAPI GET endpoint.",
+      ],
+    ],
+  );
+  assert.deepEqual(
+    JSON.parse(
+      JSON.stringify(
+        harness.context.OILPRICE_GET(
+          "/v1/prices/latest",
+          "by_code=WTI_USD&api_key=must-not-leak",
+        ),
+      ),
+    ),
+    [
+      [
+        "#UNSUPPORTED_QUERY",
+        "Do not pass API keys or credentials in query strings.",
+      ],
+    ],
+  );
+  assert.equal(harness.requests.length, 0);
+});
+
+test("Excel-equivalent formulas return stable worksheet error codes", () => {
+  const missing = createHarness();
+  assert.match(
+    missing.context.OILPRICE_PRICE("WTI_USD"),
+    /^#AUTH_REQUIRED:/,
+  );
+
+  const invalid = createHarness();
+  configure(invalid);
+  invalid.queue(
+    422,
+    JSON.stringify({
+      data: {
+        error: "invalid_code",
+        message: "Unknown code. Did you mean WTI_USD?",
+      },
+    }),
+  );
+  assert.match(
+    invalid.context.OILPRICE_PRICE("WIT_USD"),
+    /^#INVALID_CODE: Unknown code\. Did you mean WTI_USD\?$/,
+  );
+});
+
+test("OILPRICE_GET accepts the full reviewed Excel endpoint catalog", () => {
+  const paths = [
+    "/v1/status",
+    "/v1/prices",
+    "/v1/prices/latest",
+    "/v1/prices/past_day",
+    "/v1/prices/past_week",
+    "/v1/prices/past_month",
+    "/v1/prices/past_year",
+    "/v1/prices/historical",
+    "/v1/prices/all",
+    "/v1/prices/all/health",
+    "/v1/diesel-prices",
+    "/v1/commodities",
+    "/v1/commodities/categories",
+    "/v1/commodities/BRENT_CRUDE_USD",
+    "/v1/futures/ice-brent",
+    "/v1/futures/ice-wti",
+    "/v1/futures/ice-gasoil",
+    "/v1/futures/natural-gas",
+    "/v1/futures/eua-carbon",
+    "/v1/futures/ice-brent/historical",
+    "/v1/futures/ice-brent/ohlc",
+    "/v1/futures/ice-brent/intraday",
+    "/v1/futures/ice-brent/spreads",
+    "/v1/futures/ice-brent/curve",
+    "/v1/futures/ice-brent/spread-history",
+  ];
+
+  for (const path of paths) {
+    const harness = createHarness();
+    configure(harness);
+    harness.queue(200, JSON.stringify({ status: "success", data: { ok: true } }));
+    const result = harness.context.OILPRICE_GET(path, "");
+    assert.equal(result[0][0], "Field", path);
+    assert.equal(harness.requests.length, 1, path);
+  }
+});
+
+test("OILPRICE_GET renders nested futures, diesel, and price-hash responses", () => {
+  const futures = createHarness();
+  configure(futures);
+  futures.queue(
+    200,
+    JSON.stringify({
+      contracts: [
+        {
+          contract_month: "2026-09",
+          daily_data: [
+            { date: "2026-07-23", open: "81.10", close: "82.25" },
+          ],
+        },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    JSON.parse(
+      JSON.stringify(
+        futures.context.OILPRICE_GET("/v1/futures/ice-brent/ohlc", ""),
+      ),
+    ),
+    [
+      ["contract_month", "date", "open", "close"],
+      ["2026-09", "2026-07-23", 81.1, 82.25],
+    ],
+  );
+
+  const diesel = createHarness();
+  configure(diesel);
+  diesel.queue(
+    200,
+    JSON.stringify({
+      data: {
+        regional_average: {
+          region: "US",
+          price: "3.45",
+          currency: "USD",
+        },
+      },
+    }),
+  );
+  assert.deepEqual(
+    JSON.parse(
+      JSON.stringify(diesel.context.OILPRICE_GET("/v1/diesel-prices", "")),
+    ),
+    [
+      ["Field", "Value"],
+      ["region", "US"],
+      ["price", 3.45],
+      ["currency", "USD"],
+    ],
+  );
+
+  const priceHash = createHarness();
+  configure(priceHash);
+  priceHash.queue(
+    200,
+    JSON.stringify({
+      data: {
+        prices: {
+          WTI_USD: { price: "81.50", unit: "barrel" },
+          BRENT_CRUDE_USD: { price: 84.2, unit: "barrel" },
+        },
+      },
+    }),
+  );
+  assert.deepEqual(
+    JSON.parse(
+      JSON.stringify(priceHash.context.OILPRICE_GET("/v1/prices/all", "")),
+    ),
+    [
+      ["Code", "price", "unit"],
+      ["WTI_USD", 81.5, "barrel"],
+      ["BRENT_CRUDE_USD", 84.2, "barrel"],
+    ],
+  );
+});
+
+test("nested and encoded credential query keys are rejected", () => {
+  for (const query of [
+    "filters[token]=secret",
+    "filters%5Bapi_key%5D=secret",
+    "access-token=secret",
+    "client.secret=secret",
+  ]) {
+    const harness = createHarness();
+    configure(harness);
+    const result = harness.context.OILPRICE_GET("/v1/prices/latest", query);
+    assert.equal(result[0][0], "#UNSUPPORTED_QUERY", query);
+    assert.equal(harness.requests.length, 0, query);
+  }
+});
+
 test("a stale cache envelope is discarded before formula refresh", () => {
   const harness = createHarness();
   configure(harness);
@@ -274,7 +573,13 @@ test("batch refresh writes only validated API metadata", () => {
       currency: "USD",
       unit: "barrel",
       source: "market_reporting",
+      sourceDescription: "",
       timestamp: "2026-07-19T14:10:50.373Z",
+      collectedAt: "",
+      formatted: "",
+      dataStatus: "",
+      stale: "",
+      ageDays: "",
     },
   ]);
 });

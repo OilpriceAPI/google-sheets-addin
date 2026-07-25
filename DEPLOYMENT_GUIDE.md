@@ -9,7 +9,7 @@ test installation, screenshots, and submission require the publisher account.
 - Runtime version: `1.2.0`
 - Production Apps Script ID:
   `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`
-- Current immutable Apps Script version: `2`
+- Current immutable Apps Script version: `7`
 - GitHub production release workflow:
   `https://github.com/OilpriceAPI/google-sheets-addin/actions/workflows/apps-script-release.yml`
 - Marketplace status: publication pending
@@ -95,6 +95,7 @@ In the linked standard Cloud project:
 ```text
 https://www.googleapis.com/auth/spreadsheets.currentonly
 https://www.googleapis.com/auth/script.external_request
+https://www.googleapis.com/auth/script.container.ui
 ```
 
 The manifest, OAuth consent screen, and Marketplace SDK scope lists must match.
@@ -131,6 +132,9 @@ Run this checklist:
 - [ ] The add-on appears under Extensions and opens the OilPriceAPI sidebar.
 - [ ] The sidebar initially reports no stored key.
 - [ ] Saving a key clears the input and never displays the stored value.
+- [ ] The saved key is scoped to the current spreadsheet through Apps Script
+      document properties; an editor can use formulas but cannot read the key
+      through the sidebar.
 - [ ] Test connection validates both HTTP status and the response schema.
 - [ ] `=OILPRICE_PRICE("WTI_USD")` returns a finite number.
 - [ ] `=OILPRICE_UNIT("WTI_USD")` returns a currency/unit value.
@@ -203,7 +207,7 @@ In the same standard Cloud project:
 3. Add an **Editor add-on** integration for Google Sheets.
 4. Enter the Apps Script project Script ID and the tested version number.
 5. Enable individual installation and, if desired, administrator installation.
-6. Enter the same two OAuth scopes used by the manifest and OAuth consent
+6. Enter the same three OAuth scopes used by the manifest and OAuth consent
    screen.
 7. Choose visibility deliberately:
    - Public: any Marketplace user after Google review.

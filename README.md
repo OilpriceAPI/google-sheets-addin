@@ -51,7 +51,9 @@ The original `OILPRICE(code)` formula remains supported for existing sheets.
 
 ## Runtime and security contract
 
-- API keys are stored in per-user Apps Script properties.
+- API keys are stored in Apps Script document properties scoped to the current
+  spreadsheet so custom formulas can use them. Editors of that spreadsheet can
+  cause add-on formulas to make requests with the configured key.
 - The sidebar receives only configured/not-configured state; it never reads the
   stored key into browser-side HTML.
 - Generic GET calls are restricted to the same reviewed endpoint catalog as
@@ -61,8 +63,8 @@ The original `OILPRICE(code)` formula remains supported for existing sheets.
   responses fail with worksheet-readable recovery text.
 - Latest-request diagnostics contain endpoint path, status, duration,
   timestamp, and optional request ID—never the API key or query string.
-- The manifest requests only current-sheet and external-request scopes and
-  restricts URL fetches to `api.oilpriceapi.com`.
+- The manifest requests only current-sheet, external-request, and container-UI
+  scopes and restricts URL fetches to `api.oilpriceapi.com`.
 
 ## Validate locally
 

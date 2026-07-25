@@ -1,6 +1,24 @@
 # Verification Results
 
-Verification date: 2026-07-24
+Verification date: 2026-07-25
+
+## Apps Script scope correction
+
+The sidebar and dialog smoke test exposed a release-manifest mismatch: the
+runtime calls `SpreadsheetApp.getUi().showSidebar(...)` and
+`showModalDialog(...)`, but immutable versions `2`, `3`, and `4` declared only
+the spreadsheet and external-request scopes.
+
+Direct `clasp` inspection on 2026-07-25 confirmed:
+
+- versions `2`, `3`, and `4` contain two OAuth scopes and must not be submitted;
+- versions `5` and `6` add
+  `https://www.googleapis.com/auth/script.container.ui`, but still resolve
+  formula credentials through the spreadsheet owner's user properties;
+- version `7` stores the credential in Apps Script document properties scoped
+  to the spreadsheet, with a legacy user-property migration fallback;
+- version `7` contains the same `Code`, `Sidebar`, `FetchDialog`, and manifest
+  source as the reviewed local runtime.
 
 ## Automated release validation
 
@@ -12,7 +30,7 @@ npm run validate
 
 Result:
 
-- 26 runtime/public-claims tests passed, 0 failed.
+- 28 runtime/public-claims tests passed, 0 failed.
 - Apps Script syntax, required functions, UI bindings, scopes, and fetch
   allowlist are valid.
 - The deployment package exposes only `Code.gs`, `Sidebar.html`,
@@ -24,7 +42,8 @@ Result:
 
 Covered behavior includes:
 
-- credential save, status, and deletion without returning the stored value;
+- spreadsheet-scoped credential save, legacy user-property migration, status,
+  and deletion without returning the stored value;
 - missing/invalid key, locked dataset, rate limit, timeout, and server recovery;
 - malformed JSON, empty success, and schema-drift rejection;
 - stable worksheet error codes, including API invalid-code suggestions;
@@ -80,7 +99,7 @@ Completed on 2026-07-24:
   `OilPriceAPI for Sheets`;
 - pushed exactly `Code.gs`, `Sidebar.html`, `FetchDialog.html`, and
   `appsscript.json`;
-- created immutable Apps Script versions `1` and `2`;
+- created immutable Apps Script versions `1` through `7`;
 - configured the `apps-script-production` GitHub environment for `main` only;
 - stored clasp credentials as environment secrets;
 - ran the production release workflow successfully:
@@ -90,7 +109,7 @@ Production release target:
 
 - Script ID:
   `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`
-- Current immutable version: `2`
+- Current immutable version: `7`
 - Apps Script editor:
   `https://script.google.com/d/1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb/edit`
 

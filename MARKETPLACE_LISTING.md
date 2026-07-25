@@ -33,10 +33,12 @@ Detailed description:
 > Dataset access, history, and freshness depend on the configured API key,
 > source, and account entitlement.
 >
-> The API key is stored in per-user Apps Script properties. It is not written
-> to spreadsheet cells, URLs, diagnostics, or browser-side HTML. Generic GET
-> requests are restricted to a reviewed endpoint catalog and reject
-> credential-shaped query parameters.
+> The API key is stored in Apps Script document properties scoped to the
+> current spreadsheet so its formulas can retrieve data. It is not written to
+> spreadsheet cells, URLs, diagnostics, or browser-side HTML. Spreadsheet
+> editors can cause installed add-on formulas to make requests using the
+> configured key. Generic GET requests are restricted to a reviewed endpoint
+> catalog and reject credential-shaped query parameters.
 
 ## Support links
 
@@ -49,13 +51,14 @@ Detailed description:
 
 ## OAuth scopes and justification
 
-Use the same two scopes in the Apps Script manifest, OAuth consent screen, and
+Use the same three scopes in the Apps Script manifest, OAuth consent screen, and
 Marketplace SDK:
 
 | Scope | Justification |
 | --- | --- |
 | `https://www.googleapis.com/auth/spreadsheets.currentonly` | Read and write only the spreadsheet where the user runs the add-on, including inserting formulas and writing requested data tables. |
 | `https://www.googleapis.com/auth/script.external_request` | Send authenticated HTTPS GET requests to `api.oilpriceapi.com` for data explicitly requested by the user. |
+| `https://www.googleapis.com/auth/script.container.ui` | Display the add-on menu, API-key sidebar, help alerts, and data-fetch dialog inside the spreadsheet where the user runs the add-on. |
 
 The add-on does not request Drive-wide access, email, profile, or user-info
 scopes.

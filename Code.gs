@@ -142,7 +142,22 @@ function showAbout() {
   );
 }
 
+function getDocumentProperties_() {
+  try {
+    return PropertiesService.getDocumentProperties();
+  } catch (error) {
+    return null;
+  }
+}
+
 function getApiKey_() {
+  const documentProperties = getDocumentProperties_();
+  const documentKey = documentProperties
+    ? documentProperties.getProperty(KEY_PROPERTY)
+    : null;
+  if (documentKey) return documentKey;
+
+  // Migration fallback for keys saved by releases before Apps Script version 6.
   return PropertiesService.getUserProperties().getProperty(KEY_PROPERTY);
 }
 
@@ -158,13 +173,26 @@ function saveApiKey(apiKey) {
   if (typeof apiKey !== 'string' || !apiKey.trim()) {
     throw new Error('API key is required.');
   }
-  PropertiesService.getUserProperties().setProperty(KEY_PROPERTY, apiKey.trim());
-  return { success: true, message: 'API key saved in your Apps Script user properties.' };
+  const documentProperties = getDocumentProperties_();
+  if (!documentProperties) {
+    throw makeError_(
+      'ADDON_CONTEXT_REQUIRED',
+      'Open the OilPriceAPI sidebar from a Google Sheet before saving the API key.'
+    );
+  }
+  documentProperties.setProperty(KEY_PROPERTY, apiKey.trim());
+  PropertiesService.getUserProperties().deleteProperty(KEY_PROPERTY);
+  return {
+    success: true,
+    message: 'API key saved for this spreadsheet in Apps Script document properties.'
+  };
 }
 
 function deleteApiKey() {
+  const documentProperties = getDocumentProperties_();
+  if (documentProperties) documentProperties.deleteProperty(KEY_PROPERTY);
   PropertiesService.getUserProperties().deleteProperty(KEY_PROPERTY);
-  return { success: true, message: 'Stored API key deleted.' };
+  return { success: true, message: 'Stored spreadsheet API key deleted.' };
 }
 
 function getApiKeyStatus() {
@@ -231,7 +259,8 @@ function persistDiagnostic_(input) {
     if (typeof input.requestId === 'string' && input.requestId) {
       diagnostic.requestId = input.requestId.slice(0, 128);
     }
-    PropertiesService.getUserProperties().setProperty(
+    const properties = getDocumentProperties_() || PropertiesService.getUserProperties();
+    properties.setProperty(
       LAST_DIAGNOSTIC_PROPERTY,
       JSON.stringify(diagnostic)
     );
@@ -241,7 +270,8 @@ function persistDiagnostic_(input) {
 }
 
 function getLastDiagnostic() {
-  const raw = PropertiesService.getUserProperties().getProperty(LAST_DIAGNOSTIC_PROPERTY);
+  const properties = getDocumentProperties_() || PropertiesService.getUserProperties();
+  const raw = properties.getProperty(LAST_DIAGNOSTIC_PROPERTY);
   if (!raw) return null;
   try {
     const value = JSON.parse(raw);

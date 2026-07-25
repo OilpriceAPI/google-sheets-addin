@@ -60,8 +60,13 @@ const context = {
   Math,
   Number,
   PropertiesService: {
-    getUserProperties: () => ({
+    getDocumentProperties: () => ({
       getProperty: () => apiKey,
+      setProperty: () => undefined,
+      deleteProperty: () => undefined,
+    }),
+    getUserProperties: () => ({
+      getProperty: () => null,
       setProperty: () => undefined,
       deleteProperty: () => undefined,
     }),

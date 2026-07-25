@@ -40,6 +40,7 @@ const manifest = JSON.parse(
 assert.deepEqual(manifest.oauthScopes, [
   "https://www.googleapis.com/auth/spreadsheets.currentonly",
   "https://www.googleapis.com/auth/script.external_request",
+  "https://www.googleapis.com/auth/script.container.ui",
 ]);
 assert.deepEqual(manifest.urlFetchWhitelist, [
   "https://api.oilpriceapi.com/",

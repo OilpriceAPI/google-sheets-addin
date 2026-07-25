@@ -13,7 +13,7 @@ The standalone repository and Apps Script release are already deployed. Use:
   `https://script.google.com/d/1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb/edit`
 - Script ID:
   `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`
-- Immutable Apps Script version: `2`
+- Immutable Apps Script version: `7`
 - GitHub release:
   `https://github.com/OilpriceAPI/google-sheets-addin/releases/tag/v1.2.0`
 - Full operator runbook: `DEPLOYMENT_GUIDE.md`
@@ -45,9 +45,9 @@ linked above is the reviewed production target.
       and
       `https://www.oilpriceapi.com/terms/google-sheets-addon`.
 - [ ] Declare exactly these scopes:
-      `https://www.googleapis.com/auth/spreadsheets.currentonly`
-      and
-      `https://www.googleapis.com/auth/script.external_request`.
+      `https://www.googleapis.com/auth/spreadsheets.currentonly`,
+      `https://www.googleapis.com/auth/script.external_request`, and
+      `https://www.googleapis.com/auth/script.container.ui`.
 - [ ] Add the publisher and clean smoke-test accounts as test users while OAuth
       remains in Testing status.
 
@@ -90,8 +90,8 @@ Do not add Drive-wide, email, profile, or `userinfo.email` scopes.
 
 - [ ] In Google Workspace Marketplace SDK, add an **Editor add-on** integration
       for Google Sheets.
-- [ ] Enter the Script ID above and immutable version `2`.
-- [ ] Enter the same two OAuth scopes.
+- [ ] Enter the Script ID above and immutable version `7`.
+- [ ] Enter the same three OAuth scopes.
 - [ ] Choose **Public** visibility before saving. Google treats this choice as
       permanent; do not use Private as temporary staging.
 - [ ] Upload:
@@ -108,9 +108,14 @@ Do not add Drive-wide, email, profile, or `userinfo.email` scopes.
 - [ ] The Marketplace console shows a submitted/review state.
 - [ ] The submission confirmation or receipt is saved.
 - [ ] The exact submitted Script ID and version are recorded as:
-      `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`, version `2`.
+      `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`, version `7`.
 - [ ] No public page claims Marketplace availability before Google approves the
       listing.
 - [ ] After approval, a separate clean account installs the public listing and
       repeats the customer-critical smoke test before marketing copy changes.
 
+Versions `2`, `3`, and `4` do not include the required
+`script.container.ui` scope. Versions `5` and `6` still read formula
+credentials from the spreadsheet owner's user properties instead of the
+spreadsheet-scoped credential. Do not submit or restore versions `2` through
+`6`.

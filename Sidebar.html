@@ -251,7 +251,7 @@
         google.script.run
           .withSuccessHandler(function (result) {
             document.getElementById("keyState").textContent = result.configured
-              ? "A key is stored in your user properties."
+              ? "A key is stored for this spreadsheet."
               : "No key is stored.";
             if (result.configured) loadUserInfo();
           })

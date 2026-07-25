@@ -26,16 +26,19 @@ function historyBody(records) {
 }
 
 function createHarness() {
-  const properties = new Map();
+  const documentPropertyValues = new Map();
+  const userPropertyValues = new Map();
   const cache = new Map();
   const responses = [];
   const requests = [];
 
-  const userProperties = {
-    getProperty: (key) => properties.get(key) || null,
-    setProperty: (key, value) => properties.set(key, value),
-    deleteProperty: (key) => properties.delete(key),
-  };
+  const propertyStore = (values) => ({
+    getProperty: (key) => values.get(key) || null,
+    setProperty: (key, value) => values.set(key, value),
+    deleteProperty: (key) => values.delete(key),
+  });
+  const documentProperties = propertyStore(documentPropertyValues);
+  const userProperties = propertyStore(userPropertyValues);
   const userCache = {
     get: (key) => cache.get(key) || null,
     put: (key, value) => cache.set(key, value),
@@ -49,7 +52,10 @@ function createHarness() {
     JSON,
     Math,
     Number,
-    PropertiesService: { getUserProperties: () => userProperties },
+    PropertiesService: {
+      getDocumentProperties: () => documentProperties,
+      getUserProperties: () => userProperties,
+    },
     SpreadsheetApp: {},
     String,
     UrlFetchApp: {
@@ -79,7 +85,7 @@ function createHarness() {
   return {
     cache,
     context,
-    properties,
+    documentPropertyValues,
     queue(status, body, headers = {}) {
       responses.push({ status, body, headers });
     },
@@ -87,6 +93,7 @@ function createHarness() {
       responses.push(error);
     },
     requests,
+    userPropertyValues,
   };
 }
 
@@ -105,6 +112,11 @@ test("credential lifecycle never returns the stored key", () => {
   const saved = harness.context.saveApiKey("test-key-not-a-secret");
   assert.equal(saved.success, true);
   assert.equal(JSON.stringify(saved).includes("test-key-not-a-secret"), false);
+  assert.equal(
+    harness.documentPropertyValues.get("OILPRICEAPI_KEY"),
+    "test-key-not-a-secret",
+  );
+  assert.equal(harness.userPropertyValues.has("OILPRICEAPI_KEY"), false);
   assert.deepEqual(
     JSON.parse(JSON.stringify(harness.context.getApiKeyStatus())),
     { configured: true },
@@ -112,6 +124,43 @@ test("credential lifecycle never returns the stored key", () => {
 
   harness.context.deleteApiKey();
   assert.equal(harness.context.getApiKeyStatus().configured, false);
+  assert.equal(harness.documentPropertyValues.has("OILPRICEAPI_KEY"), false);
+});
+
+test("spreadsheet-scoped key survives the custom-function user identity boundary", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.context.PropertiesService.getUserProperties = () => ({
+    getProperty: () => null,
+    setProperty: () => undefined,
+    deleteProperty: () => undefined,
+  });
+  harness.queue(200, latestBody());
+
+  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+  assert.match(
+    harness.requests[0].options.headers.Authorization,
+    /^Token test-key-not-a-secret$/,
+  );
+});
+
+test("legacy user-property key remains readable until it is saved per spreadsheet", () => {
+  const harness = createHarness();
+  harness.userPropertyValues.set("OILPRICEAPI_KEY", "legacy-key");
+  harness.queue(200, latestBody());
+
+  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+  assert.equal(
+    harness.requests[0].options.headers.Authorization,
+    "Token legacy-key",
+  );
+
+  harness.context.saveApiKey("spreadsheet-key");
+  assert.equal(harness.userPropertyValues.has("OILPRICEAPI_KEY"), false);
+  assert.equal(
+    harness.documentPropertyValues.get("OILPRICEAPI_KEY"),
+    "spreadsheet-key",
+  );
 });
 
 test("OILPRICE rejects a missing key with a recovery action", () => {

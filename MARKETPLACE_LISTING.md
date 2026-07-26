@@ -68,6 +68,7 @@ scopes.
 - `assets/marketplace/app-icon-32.png`
 - `assets/marketplace/app-icon-128.png`
 - `assets/marketplace/card-banner-220x140.png`
+- `assets/marketplace/screenshots/sheets-addon-sidebar-prices-1280x800.png`
 
 Generate and verify them with:
 
@@ -86,4 +87,8 @@ padding. Do not use mock data or expose an API key.
 3. A spilled `OILPRICE_INFO` table showing source timestamp and freshness.
 4. A spilled `OILPRICE_CODES` or allowlisted `OILPRICE_GET` table.
 
-At least one real screenshot is required for submission.
+The first reviewed real screenshot is
+`assets/marketplace/screenshots/sheets-addon-sidebar-prices-1280x800.png`. It
+shows the installed sidebar, stored-key state, successful connection test,
+live prices, units, source labels, source timestamps, and retrieval timestamps
+without displaying the API key or a Google account identifier.

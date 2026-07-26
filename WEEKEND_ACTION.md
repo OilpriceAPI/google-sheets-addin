@@ -79,12 +79,13 @@ Do not add Drive-wide, email, profile, or `userinfo.email` scopes.
 
 ### 4. Capture submission proof
 
-- [ ] Capture at least one real 1280×800 PNG showing the installed add-on,
+- [x] Capture at least one real 1280×800 PNG showing the installed add-on,
       sidebar, and actual formula results.
-- [ ] Include unit, source timestamp, or freshness context in a screenshot.
-- [ ] Confirm no key, customer data, account identifier, or clipboard content is
+- [x] Include unit, source timestamp, or freshness context in a screenshot.
+- [x] Confirm no key, customer data, account identifier, or clipboard content is
       visible.
-- [ ] Save reviewed screenshots under `assets/marketplace/screenshots/`.
+- [x] Save reviewed screenshots under `assets/marketplace/screenshots/`:
+      `sheets-addon-sidebar-prices-1280x800.png`.
 
 ### 5. Configure and submit Marketplace
 

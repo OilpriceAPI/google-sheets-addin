@@ -25,6 +25,24 @@ function historyBody(records) {
   return JSON.stringify({ status: "success", data: { prices: records } });
 }
 
+function bunkerBody(records) {
+  return JSON.stringify({ status: "success", data: { prices: records } });
+}
+
+function bunkerRecord(overrides = {}) {
+  return {
+    port: "SINGAPORE",
+    fuel_type: "VLSFO",
+    price: 612.5,
+    currency: "USD",
+    unit: "metric_ton",
+    region: "Asia",
+    source: "fixture_provider",
+    as_of: "2026-07-25T09:30:00.000Z",
+    ...overrides,
+  };
+}
+
 function createHarness() {
   const documentPropertyValues = new Map();
   const userPropertyValues = new Map();
@@ -95,6 +113,77 @@ function createHarness() {
     requests,
     userPropertyValues,
   };
+}
+
+function attachSpreadsheet(harness, existingSheet = true) {
+  const calls = [];
+  const alerts = [];
+  const ranges = [];
+
+  function makeRange(row, column, rowCount, columnCount) {
+    const state = { row, column, rowCount, columnCount };
+    const range = {
+      setBackground(value) {
+        state.background = value;
+        return range;
+      },
+      setFontWeight(value) {
+        state.fontWeight = value;
+        return range;
+      },
+      setNumberFormat(value) {
+        state.numberFormat = value;
+        return range;
+      },
+      setValues(value) {
+        state.values = JSON.parse(JSON.stringify(value));
+        return range;
+      },
+    };
+    ranges.push(state);
+    return range;
+  }
+
+  const sheet = {
+    activate() {
+      calls.push(["activate"]);
+    },
+    autoResizeColumns(start, count) {
+      calls.push(["autoResizeColumns", start, count]);
+    },
+    clear() {
+      calls.push(["clear"]);
+    },
+    getRange(row, column, rowCount, columnCount) {
+      calls.push(["getRange", row, column, rowCount, columnCount]);
+      if (rowCount < 1 || columnCount < 1) {
+        throw new Error("Spreadsheet ranges must contain at least one cell.");
+      }
+      return makeRange(row, column, rowCount, columnCount);
+    },
+  };
+  let availableSheet = existingSheet ? sheet : null;
+  const spreadsheet = {
+    getSheetByName(name) {
+      calls.push(["getSheetByName", name]);
+      return availableSheet;
+    },
+    insertSheet(name) {
+      calls.push(["insertSheet", name]);
+      availableSheet = sheet;
+      return sheet;
+    },
+  };
+  harness.context.SpreadsheetApp = {
+    getActiveSpreadsheet: () => spreadsheet,
+    getUi: () => ({
+      alert(message) {
+        alerts.push(message);
+      },
+    }),
+  };
+
+  return { alerts, calls, ranges, sheet, spreadsheet };
 }
 
 function configure(harness) {
@@ -578,6 +667,224 @@ test("historical formula retains API timestamps and rejects missing timestamps",
   assert.throws(
     () => invalid.context.OILPRICE_HISTORY("WTI_USD", 1),
     /timestamp/i,
+  );
+});
+
+test("bunker records preserve the complete source contract", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(200, bunkerBody([bunkerRecord()]));
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.context.fetchBunkerRecords_(""))),
+    [
+      {
+        port: "SINGAPORE",
+        fuelType: "VLSFO",
+        price: 612.5,
+        currency: "USD",
+        unit: "metric_ton",
+        region: "Asia",
+        source: "fixture_provider",
+        timestamp: "2026-07-25T09:30:00.000Z",
+      },
+    ],
+  );
+  assert.match(harness.requests[0].url, /\/v1\/prices\/data-connector$/);
+});
+
+test("bunker records reject empty, malformed, and incomplete successful responses", () => {
+  for (const [body, pattern] of [
+    [bunkerBody([]), /no usable bunker price/i],
+    [JSON.stringify({ status: "success", data: { prices: [null] } }), /no usable bunker price/i],
+    [bunkerBody([bunkerRecord({ price: "not-a-number" })]), /finite price/i],
+    [bunkerBody([bunkerRecord({ port: "" })]), /missing port/i],
+    [bunkerBody([bunkerRecord({ fuel_type: "" })]), /missing fuel type/i],
+    [bunkerBody([bunkerRecord({ currency: "" })]), /missing currency/i],
+    [bunkerBody([bunkerRecord({ unit: "" })]), /missing unit/i],
+    [bunkerBody([bunkerRecord({ as_of: "not-a-date" })]), /source timestamp/i],
+  ]) {
+    const harness = createHarness();
+    configure(harness);
+    harness.queue(200, body);
+    assert.throws(() => harness.context.fetchBunkerRecords_(""), pattern);
+  }
+});
+
+for (const [status, pattern] of [
+  [401, /invalid or revoked API key/i],
+  [402, /cannot access the requested dataset/i],
+  [403, /cannot access the requested dataset/i],
+  [429, /rate or quota limit/i],
+]) {
+  test(`BUNKER_PRICE maps HTTP ${status} to actionable recovery`, () => {
+    const harness = createHarness();
+    configure(harness);
+    harness.queue(status, JSON.stringify({ error: "fixture" }));
+    assert.throws(
+      () => harness.context.BUNKER_PRICE("SINGAPORE", "VLSFO"),
+      pattern,
+    );
+  });
+}
+
+test("BUNKER_PRICE maps Apps Script fetch failures to timeout recovery", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queueError(new Error("Socket timeout"));
+  assert.throws(
+    () => harness.context.BUNKER_PRICE("SINGAPORE", "VLSFO"),
+    /timed out/i,
+  );
+});
+
+test("bunker formulas normalize and encode filters and return source-aware values", () => {
+  const priceHarness = createHarness();
+  configure(priceHarness);
+  priceHarness.queue(
+    200,
+    bunkerBody([bunkerRecord({ port: "NEW-YORK:US", fuel_type: "VLSFO_0-5" })]),
+  );
+  assert.equal(
+    priceHarness.context.BUNKER_PRICE("new-york:us", "vlsfo_0-5"),
+    612.5,
+  );
+  assert.match(
+    priceHarness.requests[0].url,
+    /\?port=NEW-YORK%3AUS&fuel_type=VLSFO_0-5$/,
+  );
+
+  const tableHarness = createHarness();
+  configure(tableHarness);
+  tableHarness.queue(
+    200,
+    bunkerBody([
+      bunkerRecord(),
+      bunkerRecord({
+        fuel_type: "MGO",
+        price: "785.20",
+        unit: "tonne",
+        as_of: "2026-07-25T10:00:00.000Z",
+      }),
+    ]),
+  );
+  assert.deepEqual(
+    JSON.parse(
+      JSON.stringify(tableHarness.context.BUNKER_PORT_PRICES("singapore")),
+    ),
+    [
+      ["Fuel Type", "Price", "Currency", "Unit", "Source Timestamp"],
+      ["VLSFO", 612.5, "USD", "metric_ton", "2026-07-25T09:30:00.000Z"],
+      ["MGO", 785.2, "USD", "tonne", "2026-07-25T10:00:00.000Z"],
+    ],
+  );
+  assert.match(tableHarness.requests[0].url, /\?port=SINGAPORE$/);
+});
+
+test("bunker inputs reject unsupported filter characters before fetch", () => {
+  const harness = createHarness();
+  configure(harness);
+  assert.throws(
+    () => harness.context.BUNKER_PRICE("Singapore & Johor", "VLSFO"),
+    /unsupported characters/i,
+  );
+  assert.equal(harness.requests.length, 0);
+});
+
+test("Data Connector sheet writer creates the nine-column source-aware table", () => {
+  const harness = createHarness();
+  const spreadsheet = attachSpreadsheet(harness, false);
+  const records = [
+    {
+      port: "SINGAPORE",
+      fuelType: "VLSFO",
+      price: 612.5,
+      currency: "USD",
+      unit: "metric_ton",
+      region: "Asia",
+      source: "fixture_provider",
+      timestamp: "2026-07-25T09:30:00.000Z",
+    },
+  ];
+
+  harness.context.writeToDataConnectorSheet(records);
+
+  assert.deepEqual(spreadsheet.calls.slice(0, 3), [
+    ["getSheetByName", "Bunker Prices"],
+    ["insertSheet", "Bunker Prices"],
+    ["clear"],
+  ]);
+  const header = spreadsheet.ranges.find(
+    (range) => range.row === 1 && range.column === 1,
+  );
+  assert.deepEqual(header.values, [
+    [
+      "Port",
+      "Fuel Type",
+      "Price",
+      "Currency",
+      "Unit",
+      "Region",
+      "Source",
+      "Source Timestamp",
+      "Retrieved At",
+    ],
+  ]);
+  const headerStyle = spreadsheet.ranges.find(
+    (range) =>
+      range.row === 1 &&
+      range.column === 1 &&
+      range.fontWeight === "bold",
+  );
+  assert.equal(headerStyle.background, "#e8f5e9");
+
+  const rows = spreadsheet.ranges.find(
+    (range) => range.row === 2 && range.column === 1,
+  );
+  assert.equal(rows.rowCount, 1);
+  assert.equal(rows.columnCount, 9);
+  assert.deepEqual(rows.values[0].slice(0, 8), [
+    "SINGAPORE",
+    "VLSFO",
+    612.5,
+    "USD",
+    "metric_ton",
+    "Asia",
+    "fixture_provider",
+    "2026-07-25T09:30:00.000Z",
+  ]);
+  assert.ok(Number.isFinite(new Date(rows.values[0][8]).getTime()));
+
+  const priceRange = spreadsheet.ranges.find(
+    (range) => range.row === 2 && range.column === 3,
+  );
+  assert.equal(priceRange.numberFormat, "#,##0.00");
+  assert.deepEqual(spreadsheet.calls.slice(-2), [
+    ["autoResizeColumns", 1, 9],
+    ["activate"],
+  ]);
+});
+
+test("Data Connector menu flow alerts on success and recovers from empty data", () => {
+  const success = createHarness();
+  configure(success);
+  const successSpreadsheet = attachSpreadsheet(success);
+  success.queue(200, bunkerBody([bunkerRecord()]));
+  success.context.fetchDataConnectorPrices();
+  assert.deepEqual(successSpreadsheet.alerts, [
+    "Fetched 1 source-timestamped bunker price records.",
+  ]);
+
+  const empty = createHarness();
+  configure(empty);
+  const emptySpreadsheet = attachSpreadsheet(empty, false);
+  empty.queue(200, bunkerBody([]));
+  empty.context.fetchDataConnectorPrices();
+  assert.equal(emptySpreadsheet.alerts.length, 1);
+  assert.match(emptySpreadsheet.alerts[0], /no usable bunker price/i);
+  assert.equal(
+    emptySpreadsheet.calls.some((call) => call[0] === "insertSheet"),
+    false,
   );
 });
 

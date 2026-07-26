@@ -10,6 +10,10 @@ const apiKey = process.env.OILPRICEAPI_KEY;
 if (!apiKey) {
   throw new Error("Set OILPRICEAPI_KEY before running npm run test:live.");
 }
+const dataConnectorSmoke =
+  process.env.OILPRICEAPI_DATA_CONNECTOR_SMOKE === "1";
+const dataConnectorPort = process.env.OILPRICEAPI_DATA_CONNECTOR_PORT;
+const dataConnectorFuel = process.env.OILPRICEAPI_DATA_CONNECTOR_FUEL;
 
 function curlConfigValue(value) {
   return String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"');
@@ -45,6 +49,37 @@ function fetchWithCurl(url, options) {
 }
 
 const cache = new Map();
+const connectorAlerts = [];
+const connectorRanges = [];
+const connectorSheet = {
+  activate: () => undefined,
+  autoResizeColumns: () => undefined,
+  clear: () => undefined,
+  getRange(row, column, rowCount, columnCount) {
+    assert.ok(rowCount > 0 && columnCount > 0);
+    const state = { row, column, rowCount, columnCount };
+    const range = {
+      setBackground(value) {
+        state.background = value;
+        return range;
+      },
+      setFontWeight(value) {
+        state.fontWeight = value;
+        return range;
+      },
+      setNumberFormat(value) {
+        state.numberFormat = value;
+        return range;
+      },
+      setValues(values) {
+        state.values = values;
+        return range;
+      },
+    };
+    connectorRanges.push(state);
+    return range;
+  },
+};
 const code = fs.readFileSync(path.join(__dirname, "..", "Code.gs"), "utf8");
 const context = {
   CacheService: {
@@ -69,6 +104,15 @@ const context = {
       getProperty: () => null,
       setProperty: () => undefined,
       deleteProperty: () => undefined,
+    }),
+  },
+  SpreadsheetApp: {
+    getActiveSpreadsheet: () => ({
+      getSheetByName: () => connectorSheet,
+      insertSheet: () => connectorSheet,
+    }),
+    getUi: () => ({
+      alert: (message) => connectorAlerts.push(message),
     }),
   },
   String,
@@ -105,6 +149,63 @@ const history = context.OILPRICE_HISTORY("WTI_USD", 1);
 assert.ok(Array.isArray(history) && history.length > 0);
 assert.ok(Number.isFinite(new Date(history[0][0]).getTime()));
 assert.ok(Number.isFinite(history[0][1]));
+
+if (dataConnectorSmoke) {
+  if (!dataConnectorPort || !dataConnectorFuel) {
+    throw new Error(
+      "Set OILPRICEAPI_DATA_CONNECTOR_PORT and OILPRICEAPI_DATA_CONNECTOR_FUEL when OILPRICEAPI_DATA_CONNECTOR_SMOKE=1.",
+    );
+  }
+
+  context.fetchDataConnectorPrices();
+  assert.equal(connectorAlerts.length, 1);
+  assert.match(connectorAlerts[0], /^Fetched \d+ source-timestamped bunker price records\.$/);
+  const headerRange = connectorRanges.find(
+    (range) => range.row === 1 && range.column === 1 && range.values,
+  );
+  const headerStyle = connectorRanges.find(
+    (range) => range.row === 1 && range.column === 1 && range.fontWeight,
+  );
+  const dataRange = connectorRanges.find(
+    (range) => range.row === 2 && range.column === 1 && range.values,
+  );
+  assert.equal(headerRange.columnCount, 9);
+  assert.equal(headerStyle.fontWeight, "bold");
+  assert.equal(headerStyle.background, "#e8f5e9");
+  assert.ok(dataRange.rowCount > 0);
+  assert.ok(dataRange.values.every((row) => row.length === 9));
+
+  const bunkerPrice = context.BUNKER_PRICE(
+    dataConnectorPort,
+    dataConnectorFuel,
+  );
+  assert.ok(Number.isFinite(bunkerPrice) && bunkerPrice > 0);
+
+  const bunkerTable = context.BUNKER_PORT_PRICES(dataConnectorPort);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(bunkerTable[0])),
+    ["Fuel Type", "Price", "Currency", "Unit", "Source Timestamp"],
+  );
+  assert.ok(bunkerTable.length > 1);
+  assert.ok(
+    bunkerTable.slice(1).every(
+      (row) =>
+        row.length === 5 &&
+        Number.isFinite(row[1]) &&
+        typeof row[2] === "string" &&
+        typeof row[3] === "string" &&
+        Number.isFinite(new Date(row[4]).getTime()),
+    ),
+  );
+
+  console.log(
+    `Production Data Connector smoke passed: menu_rows=${dataRange.rowCount}, formula_price=${bunkerPrice}, port_rows=${bunkerTable.length - 1}`,
+  );
+} else {
+  console.log(
+    "Production Data Connector smoke skipped; set OILPRICEAPI_DATA_CONNECTOR_SMOKE=1 with port and fuel inputs to run the entitled-account checks.",
+  );
+}
 
 console.log(
   `Production formula smoke passed: latest=${price}, unit=${unit}, info_source_timestamp=${infoMap.source_timestamp}, history_records=${history.length}`,

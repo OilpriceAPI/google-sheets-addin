@@ -79,8 +79,9 @@ npm run validate
 
 The validation suite covers formula parity, credential lifecycle, negative
 auth/entitlement/quota paths, response-shape drift, stale cache, source
-metadata, endpoint/query allowlisting, deployment packaging, Marketplace asset
-dimensions, public claims, and secret scanning.
+metadata, Data Connector filtering and sheet output, endpoint/query
+allowlisting, deployment packaging, Marketplace asset dimensions, public
+claims, and secret scanning.
 
 For a production API smoke:
 
@@ -88,7 +89,18 @@ For a production API smoke:
 OILPRICEAPI_KEY="your non-customer test key" npm run test:live
 ```
 
-The live-smoke script does not print the key.
+The standard smoke skips the account-gated Data Connector checks. Run those
+with an entitled non-customer account and known valid filters:
+
+```bash
+OILPRICEAPI_KEY="your non-customer test key" \
+OILPRICEAPI_DATA_CONNECTOR_SMOKE=1 \
+OILPRICEAPI_DATA_CONNECTOR_PORT="SINGAPORE" \
+OILPRICEAPI_DATA_CONNECTOR_FUEL="VLSFO" \
+npm run test:live
+```
+
+The live-smoke script does not print the key or filter values.
 
 ## Deploy
 

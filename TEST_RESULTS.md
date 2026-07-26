@@ -1,6 +1,6 @@
 # Verification Results
 
-Verification date: 2026-07-25
+Verification date: 2026-07-26
 
 ## Apps Script scope correction
 
@@ -30,7 +30,7 @@ npm run validate
 
 Result:
 
-- 28 runtime/public-claims tests passed, 0 failed.
+- 39 runtime/public-claims tests passed, 0 failed.
 - Apps Script syntax, required functions, UI bindings, scopes, and fetch
   allowlist are valid.
 - The deployment package exposes only `Code.gs`, `Sidebar.html`,
@@ -55,7 +55,11 @@ Covered behavior includes:
 - flat price, keyed price, diesel, and nested futures table rendering;
 - source timestamp, unit, freshness, and diagnostic preservation;
 - fresh/stale cache envelopes, history, batch limit, conversion behavior, and
-  no fabricated exchange-rate fallbacks or account limits.
+  no fabricated exchange-rate fallbacks or account limits;
+- Data Connector response validation, filter normalization and encoding,
+  account-lock/rate-limit/timeout recovery, both bunker formulas, the
+  nine-column green-header sheet writer, success alert, and empty-data
+  recovery.
 
 ## Dependency audit
 
@@ -94,6 +98,21 @@ Result on 2026-07-24:
 The smoke used the existing non-customer key from the local environment. The
 script passes the key to `curl` through standard input and never prints it.
 
+The Data Connector portion is intentionally opt-in because it requires an
+entitled account and known valid port/fuel filters:
+
+```bash
+OILPRICEAPI_KEY="non-customer entitled test key" \
+OILPRICEAPI_DATA_CONNECTOR_SMOKE=1 \
+OILPRICEAPI_DATA_CONNECTOR_PORT="known valid port" \
+OILPRICEAPI_DATA_CONNECTOR_FUEL="known valid fuel" \
+npm run test:live
+```
+
+When enabled, the smoke exercises the menu fetch, validates the nine-column
+sheet and green header, and runs both bunker custom functions against the
+production API. This entitled live smoke has not yet been run.
+
 ## Account-bound release and submission gates
 
 Completed on 2026-07-24:
@@ -131,5 +150,11 @@ Remaining Google-controlled gates:
 - wait for Marketplace approval and publication;
 - after approval, install from the public listing with a separate clean account
   and repeat the customer-critical smoke before changing availability claims.
+
+Remaining Data Connector acceptance gate:
+
+- run the opt-in production smoke with a Data Connector-enabled non-customer
+  account, then repeat the menu item and both formulas inside the submitted
+  Apps Script version in a clean spreadsheet.
 
 See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).

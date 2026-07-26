@@ -94,7 +94,7 @@ Result on 2026-07-24:
 The smoke used the existing non-customer key from the local environment. The
 script passes the key to `curl` through standard input and never prints it.
 
-## Account-bound release gates
+## Account-bound release and submission gates
 
 Completed on 2026-07-24:
 
@@ -116,12 +116,20 @@ Production release target:
 - Apps Script editor:
   `https://script.google.com/d/1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb/edit`
 
-Remaining Google account/Marketplace gates:
+Completed on 2026-07-26:
 
-- link that script to the standard Google Cloud project;
-- install and smoke the Editor add-on test deployment in a clean Sheet;
-- capture at least one real 1280x800 screenshot;
-- configure OAuth and Marketplace SDK with the Script ID and version;
-- complete any required OAuth verification and submit the public listing.
+- linked the script to Google Cloud project `oilpriceapi-sheets-addon`;
+- installed and smoked the Editor add-on test deployment in a clean Sheet;
+- uploaded the reviewed 1280x800 runtime screenshot and all required graphics;
+- configured the Marketplace SDK with Apps Script version `7`;
+- submitted the public listing for review;
+- recorded the locked state: **“The draft is in review and can't be edited.”**
+
+Remaining Google-controlled gates:
+
+- complete OAuth verification if Google requests it;
+- wait for Marketplace approval and publication;
+- after approval, install from the public listing with a separate clean account
+  and repeat the customer-critical smoke before changing availability claims.
 
 See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).

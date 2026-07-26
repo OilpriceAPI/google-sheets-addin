@@ -3,9 +3,10 @@
 Deployment-ready Editor add-on for source-aware OilPriceAPI formulas in Google
 Sheets.
 
-> Google Workspace Marketplace publication is pending. The source and release
-> package are ready; account-bound Apps Script, OAuth, test-deployment, and
-> Marketplace submission steps remain.
+> Google Workspace Marketplace publication is pending. The public listing was
+> submitted on July 26, 2026 and is locked in Google review. The reviewed
+> Apps Script release is version 7. Do not claim Marketplace availability
+> until Google approves and publishes the listing.
 
 Dataset access, history, freshness, and limits depend on the API key, source,
 and account entitlement. Review the

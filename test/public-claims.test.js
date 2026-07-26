@@ -22,6 +22,9 @@ test("public surfaces identify Marketplace status and canonical facts", () => {
     fs.readFileSync(path.join(ROOT, file), "utf8"),
   ).join("\n");
   assert.match(text, /Google Workspace Marketplace publication (?:is )?pending/i);
+  assert.match(text, /submitted (?:on )?July 26, 2026/i);
+  assert.match(text, /locked in Google review/i);
+  assert.doesNotMatch(text, /Marketplace submission steps remain/i);
   assert.match(text, /https:\/\/api\.oilpriceapi\.com\/product-facts\.json/);
 });
 

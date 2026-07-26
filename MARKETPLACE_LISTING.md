@@ -1,13 +1,13 @@
 # Google Workspace Marketplace Listing
 
-Status: submission-ready copy for the Editor add-on. Do not claim Marketplace
-availability until Google publishes the listing.
+Status: submitted July 26, 2026 and locked in Google review. Do not claim
+Marketplace availability until Google publishes the listing.
 
 ## App details
 
 - Default language: English
 - Application name: `OilPriceAPI for Sheets`
-- Category: Business Tools
+- Category: Accounting and Finance
 - Pricing: Free of charge with paid features
 - Developer name: `OilPriceAPI`
 - Developer website: `https://www.oilpriceapi.com`
@@ -51,8 +51,7 @@ Detailed description:
 
 ## OAuth scopes and justification
 
-Use the same three scopes in the Apps Script manifest, OAuth consent screen, and
-Marketplace SDK:
+The Apps Script manifest declares these three functional scopes:
 
 | Scope | Justification |
 | --- | --- |
@@ -60,8 +59,23 @@ Marketplace SDK:
 | `https://www.googleapis.com/auth/script.external_request` | Send authenticated HTTPS GET requests to `api.oilpriceapi.com` for data explicitly requested by the user. |
 | `https://www.googleapis.com/auth/script.container.ui` | Display the add-on menu, API-key sidebar, help alerts, and data-fetch dialog inside the spreadsheet where the user runs the add-on. |
 
-The add-on does not request Drive-wide access, email, profile, or user-info
-scopes.
+The submitted OAuth/Marketplace configuration also displays Google's mandatory
+`userinfo.email` and `userinfo.profile` defaults. The add-on does not use those
+identity defaults for product behavior and does not request Drive-wide access.
+
+## Submission receipt
+
+- Google Cloud project: `oilpriceapi-sheets-addon` (`991152473434`)
+- Apps Script version: `7`
+- Integration: Google Sheets Editor add-on
+- Install modes: individual and administrator
+- Regions: all regions
+- Review state: **In review**
+- Locked-state proof: **“The draft is in review and can't be edited”**
+
+The OAuth consent screen was still in Testing at submission, and two identity
+scopes were marked unverified. Google may require production consent status and
+OAuth verification during review. Publication remains pending until approval.
 
 ## Graphic assets
 

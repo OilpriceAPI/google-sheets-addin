@@ -1,6 +1,8 @@
-# Saturday action: submit OilPriceAPI for Sheets
+# Weekend action: submit OilPriceAPI for Sheets
 
 Target date: Saturday, July 25, 2026
+
+Completed: Sunday, July 26, 2026
 
 ## Outcome
 
@@ -26,41 +28,46 @@ linked above is the reviewed production target.
 
 ### 1. Link the standard Google Cloud project
 
-- [ ] Sign in as `karl.waldman@gmail.com`.
-- [ ] Open the Apps Script project above and select **Project Settings**.
-- [ ] Replace the default Apps Script Cloud project with the organization-owned
+- [x] Sign in with the publisher-controlled Google account.
+- [x] Open the Apps Script project above and select **Project Settings**.
+- [x] Replace the default Apps Script Cloud project with the organization-owned
       standard Google Cloud project's numeric project number.
-- [ ] Confirm the Apps Script API and Google Workspace Marketplace SDK are
+- [x] Confirm the Apps Script API and Google Workspace Marketplace SDK are
       enabled in that Cloud project.
-- [ ] Add a backup organization-controlled collaborator to the Apps Script and
+- [x] Add a backup organization-controlled collaborator to the Apps Script and
       Cloud projects.
 
 ### 2. Configure OAuth
 
-- [ ] Configure the OAuth consent screen as **External**.
-- [ ] Use app name `OilPriceAPI for Sheets`.
-- [ ] Use `support@oilpriceapi.com` for user support and developer contact.
-- [ ] Use:
+- [x] Configure the OAuth consent screen as **External**.
+- [x] Use app name `OilPriceAPI for Sheets`.
+- [x] Use an organization-controlled support and developer contact.
+- [x] Use:
       `https://www.oilpriceapi.com/privacy/google-sheets-addon`
       and
       `https://www.oilpriceapi.com/terms/google-sheets-addon`.
-- [ ] Declare exactly these scopes:
+- [x] Declare these three functional scopes:
       `https://www.googleapis.com/auth/spreadsheets.currentonly`,
       `https://www.googleapis.com/auth/script.external_request`, and
       `https://www.googleapis.com/auth/script.container.ui`.
-- [ ] Add the publisher and clean smoke-test accounts as test users while OAuth
+- [x] Accept Google's two mandatory identity defaults,
+      `userinfo.email` and `userinfo.profile`, in the submitted consent/listing
+      configuration. The Apps Script manifest still declares only the three
+      functional scopes above.
+- [x] Add the publisher and clean smoke-test accounts as test users while OAuth
       remains in Testing status.
 
-Do not add Drive-wide, email, profile, or `userinfo.email` scopes.
+Do not add Drive-wide scopes or use the Google identity defaults for product
+behavior.
 
 ### 3. Create and smoke-test the Editor add-on
 
-- [ ] Create a blank spreadsheet containing no customer data.
-- [ ] In Apps Script, select **Deploy → Test deployments → Editor add-on**.
-- [ ] Test **Latest Code** against the blank spreadsheet.
-- [ ] Open the sidebar and confirm it initially reports no stored API key.
-- [ ] Save a non-customer OilPriceAPI test key and test the connection.
-- [ ] Run:
+- [x] Create a blank spreadsheet containing no customer data.
+- [x] In Apps Script, select **Deploy → Test deployments → Editor add-on**.
+- [x] Test **Latest Code** against the blank spreadsheet.
+- [x] Open the sidebar and confirm it initially reports no stored API key.
+- [x] Save a non-customer OilPriceAPI test key and test the connection.
+- [x] Run:
 
 ```text
 =OILPRICE_PRICE("WTI_USD")
@@ -71,10 +78,10 @@ Do not add Drive-wide, email, profile, or `userinfo.email` scopes.
 =OILPRICE_GET("/v1/prices/latest","by_code=WTI_USD")
 ```
 
-- [ ] Confirm unsupported endpoints and query keys such as `api_key`, `token`,
+- [x] Confirm unsupported endpoints and query keys such as `api_key`, `token`,
       and `password` fail before a request.
-- [ ] Delete the stored key and confirm the sidebar returns to no-key state.
-- [ ] Review Apps Script Executions for exceptions, retries, unexpected 4xx/5xx
+- [x] Delete the stored key and confirm the sidebar returns to no-key state.
+- [x] Review Apps Script Executions for exceptions, retries, unexpected 4xx/5xx
       responses, or any credential/query-string leakage.
 
 ### 4. Capture submission proof
@@ -89,31 +96,55 @@ Do not add Drive-wide, email, profile, or `userinfo.email` scopes.
 
 ### 5. Configure and submit Marketplace
 
-- [ ] In Google Workspace Marketplace SDK, add an **Editor add-on** integration
+- [x] In Google Workspace Marketplace SDK, add an **Editor add-on** integration
       for Google Sheets.
-- [ ] Enter the Script ID above and immutable version `7`.
-- [ ] Enter the same three OAuth scopes.
-- [ ] Choose **Public** visibility before saving. Google treats this choice as
+- [x] Enter the Script ID above and immutable version `7`.
+- [x] Enter the three functional OAuth scopes plus Google's two mandatory
+      identity defaults.
+- [x] Choose **Public** visibility before saving. Google treats this choice as
       permanent; do not use Private as temporary staging.
-- [ ] Upload:
+- [x] Upload:
       `assets/marketplace/app-icon-32.png`,
       `assets/marketplace/app-icon-128.png`,
       `assets/marketplace/card-banner-220x140.png`,
       and the approved screenshot.
-- [ ] Paste the approved copy and links from `MARKETPLACE_LISTING.md`.
-- [ ] Submit OAuth verification if Google requests it.
-- [ ] Submit the Marketplace listing for review.
+- [x] Paste the approved copy and links from `MARKETPLACE_LISTING.md`.
+- [x] Submit the Marketplace listing for review.
+- [ ] Complete Google's OAuth verification if requested during review.
 
 ## Done when
 
-- [ ] The Marketplace console shows a submitted/review state.
-- [ ] The submission confirmation or receipt is saved.
-- [ ] The exact submitted Script ID and version are recorded as:
+- [x] The Marketplace console shows a submitted/review state.
+- [x] The locked-review confirmation is recorded below.
+- [x] The exact submitted Script ID and version are recorded as:
       `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`, version `7`.
-- [ ] No public page claims Marketplace availability before Google approves the
+- [x] No public page claims Marketplace availability before Google approves the
       listing.
 - [ ] After approval, a separate clean account installs the public listing and
       repeats the customer-critical smoke test before marketing copy changes.
+
+## Submission receipt
+
+Submitted on July 26, 2026:
+
+- listing: `OilPriceAPI for Sheets`;
+- state: **In review**;
+- console proof: **“The draft is in review and can't be edited”**, with the
+  review-cancellation control present and draft saving disabled;
+- Google Cloud project: `oilpriceapi-sheets-addon` (`991152473434`);
+- Apps Script version: `7`;
+- integration: Google Sheets Editor add-on;
+- installation: individual and administrator install;
+- regions: all regions.
+
+Review caveats:
+
+- the OAuth consent screen was still in Testing when submitted; Google may
+  require it to move to In production;
+- two submitted identity scopes are marked unverified, so Google may route the
+  listing through OAuth verification;
+- neither caveat blocked submission, and the review must not be canceled merely
+  to change repository copy.
 
 Versions `2`, `3`, and `4` do not include the required
 `script.container.ui` scope. Versions `5` and `6` still read formula

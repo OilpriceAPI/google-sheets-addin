@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 const path = require("node:path");
 const sharp = require("sharp");
 
@@ -18,7 +19,23 @@ async function main() {
     assert.equal(metadata.width, width, `${file} width`);
     assert.equal(metadata.height, height, `${file} height`);
   }
-  console.log("Marketplace assets have the required formats and dimensions.");
+
+  const screenshotsDir = path.join(root, "screenshots");
+  const screenshots = fs
+    .readdirSync(screenshotsDir)
+    .filter((file) => file.toLowerCase().endsWith(".png"));
+  assert.ok(screenshots.length > 0, "at least one Marketplace screenshot is required");
+
+  for (const file of screenshots) {
+    const metadata = await sharp(path.join(screenshotsDir, file)).metadata();
+    assert.equal(metadata.format, "png", `${file} must be PNG`);
+    assert.equal(metadata.width, 1280, `${file} width`);
+    assert.equal(metadata.height, 800, `${file} height`);
+  }
+
+  console.log(
+    `Marketplace assets and ${screenshots.length} screenshot(s) have the required formats and dimensions.`,
+  );
 }
 
 main().catch((error) => {

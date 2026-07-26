@@ -37,6 +37,9 @@ Result:
   `FetchDialog.html`, and `appsscript.json`.
 - Marketplace icons are valid 32x32 and 128x128 PNGs.
 - The Marketplace card banner is a valid 220x140 PNG.
+- The reviewed Marketplace screenshot is a valid 1280x800 PNG showing the
+  installed sidebar, successful connection, live data, units, and source
+  timestamps without a visible key or account identifier.
 - Unsupported mutable-claim checks passed.
 - Filename-only secret scan passed.
 

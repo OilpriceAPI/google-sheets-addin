@@ -1,12 +1,13 @@
 # Google Workspace Marketplace Listing
 
-Status: submitted July 26, 2026 and locked in Google review. Do not claim
-Marketplace availability until Google publishes the listing.
+Status: rejected July 27, 2026 pending trademark attribution and OAuth
+verification remediation. Do not claim Marketplace availability until Google
+approves and publishes the listing.
 
 ## App details
 
 - Default language: English
-- Application name: `OilPriceAPI for Sheets`
+- Application name: `OilPriceAPI for Google Sheets™`
 - Category: Accounting and Finance
 - Pricing: Free of charge with paid features
 - Developer name: `OilPriceAPI`
@@ -18,10 +19,10 @@ Short description:
 
 Detailed description:
 
-> OilPriceAPI for Sheets adds source-aware energy data formulas to Google
-> Sheets. Configure an OilPriceAPI key once in the sidebar, then request the
-> latest available value, its currency and unit, source timestamp, freshness
-> state, or an allowlisted API table.
+> OilPriceAPI for Google Sheets™ adds source-aware energy data formulas to
+> Google Sheets™. Configure an OilPriceAPI key once in the sidebar, then
+> request the latest available value, its currency and unit, source timestamp,
+> freshness state, or an allowlisted API table.
 >
 > Core formulas include OILPRICE_PRICE, OILPRICE_INFO, OILPRICE_STATUS,
 > OILPRICE_UNIT, OILPRICE_CODES, and OILPRICE_GET. Existing OILPRICE,
@@ -39,6 +40,8 @@ Detailed description:
 > editors can cause installed add-on formulas to make requests using the
 > configured key. Generic GET requests are restricted to a reviewed endpoint
 > catalog and reject credential-shaped query parameters.
+>
+> Google Sheets™ is a trademark of Google LLC.
 
 ## Support links
 
@@ -66,16 +69,18 @@ identity defaults for product behavior and does not request Drive-wide access.
 ## Submission receipt
 
 - Google Cloud project: `oilpriceapi-sheets-addon` (`991152473434`)
-- Apps Script version: `7`
+- Apps Script version: `9`
 - Integration: Google Sheets Editor add-on
 - Install modes: individual and administrator
 - Regions: all regions
-- Review state: **In review**
-- Locked-state proof: **“The draft is in review and can't be edited”**
+- Review state: **Rejected — remediation in progress**
+- Rejection email received: **July 27, 2026**
 
-The OAuth consent screen was still in Testing at submission, and two identity
-scopes were marked unverified. Google may require production consent status and
-OAuth verification during review. Publication remains pending until approval.
+Google requires the OAuth consent screen to be **In production** and the three
+functional scopes above to match exactly in the Apps Script manifest,
+Marketplace SDK App Configuration, and OAuth consent screen. Google's default
+`userinfo.email` and `userinfo.profile` scopes remain in place. Do not resubmit
+until OAuth approval is complete.
 
 ## Graphic assets
 

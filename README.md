@@ -1,12 +1,12 @@
-# OilPriceAPI for Google Sheets
+# OilPriceAPI for Google Sheets™
 
 Deployment-ready Editor add-on for source-aware OilPriceAPI formulas in Google
-Sheets.
+Sheets™.
 
 > Google Workspace Marketplace publication is pending. The public listing was
-> submitted on July 26, 2026 and is locked in Google review. The reviewed
-> Apps Script release is version 7. Do not claim Marketplace availability
-> until Google approves and publishes the listing.
+> submitted on July 26, 2026 and rejected on July 27 pending trademark
+> attribution and OAuth verification remediation. Do not claim Marketplace
+> availability until Google approves and publishes the listing.
 
 Dataset access, history, freshness, and limits depend on the API key, source,
 and account entitlement. Review the
@@ -113,7 +113,7 @@ npm run clasp:login
 read -r "OPA_SCRIPT_ID?Apps Script ID: "
 npm run clasp:configure -- "$OPA_SCRIPT_ID"
 npm run deploy:push
-npm run deploy:version -- "OilPriceAPI for Sheets 1.2.0"
+npm run deploy:version -- "OilPriceAPI for Google Sheets 1.2.0"
 ```
 
 Editor add-on publication uses the Apps Script **script ID and version

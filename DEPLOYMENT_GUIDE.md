@@ -1,4 +1,4 @@
-# Deploy OilPriceAPI for Google Sheets
+# Deploy OilPriceAPI for Google Sheets™
 
 This is the production operator runbook for the Google Sheets Editor add-on.
 Code packaging is automated; Google account ownership, Cloud/OAuth settings,
@@ -9,7 +9,7 @@ test installation, screenshots, and submission require the publisher account.
 - Runtime version: `1.2.0`
 - Production Apps Script ID:
   `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`
-- Current immutable Apps Script version: `7`
+- Current immutable Apps Script version: `9`
 - GitHub production release workflow:
   `https://github.com/OilpriceAPI/google-sheets-addin/actions/workflows/apps-script-release.yml`
 - Marketplace status: publication pending
@@ -27,8 +27,8 @@ project cannot be used for publication.
 
 Recommended app identity:
 
-- OAuth app name: `OilPriceAPI for Sheets`
-- Marketplace app name: `OilPriceAPI for Sheets`
+- OAuth app name: `OilPriceAPI for Google Sheets™`
+- Marketplace app name: `OilPriceAPI for Google Sheets™`
 - User support email: `support@oilpriceapi.com`
 - Developer contact: `support@oilpriceapi.com`
 - App domain: `oilpriceapi.com`
@@ -42,7 +42,7 @@ Add at least one backup collaborator to the Apps Script and Cloud projects.
 ## 2. Create the standalone Apps Script project
 
 1. Open `https://script.google.com` with the publisher account.
-2. Create a **standalone** project named `OilPriceAPI for Sheets`.
+2. Create a **standalone** project named `OilPriceAPI for Google Sheets™`.
 3. Open Project Settings and copy its Script ID.
 4. Under Google Cloud Platform Project, switch from the default project to the
    standard Cloud project's numeric project number.
@@ -99,7 +99,9 @@ https://www.googleapis.com/auth/script.container.ui
 ```
 
 The manifest, OAuth consent screen, and Marketplace SDK scope lists must match.
-Do not add Drive-wide, email, profile, or `userinfo.email` scopes.
+Google adds the default `userinfo.email` and `userinfo.profile` identity scopes
+to the displayed OAuth configuration; preserve those defaults. Do not add
+Drive-wide access or additional functional scopes.
 
 If Google requires OAuth verification, submit the requested scope
 justifications and a demo video showing installation, authorization, API-key
@@ -175,7 +177,7 @@ screenshots until they have been reviewed for secrets and customer data.
 After the smoke passes against the exact pushed source:
 
 ```bash
-npm run deploy:version -- "OilPriceAPI for Sheets 1.2.0"
+npm run deploy:version -- "OilPriceAPI for Google Sheets 1.2.0"
 npm run deploy:list
 ```
 

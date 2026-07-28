@@ -23,9 +23,20 @@ test("public surfaces identify Marketplace status and canonical facts", () => {
   ).join("\n");
   assert.match(text, /Google Workspace Marketplace publication (?:is )?pending/i);
   assert.match(text, /submitted (?:on )?July 26, 2026/i);
-  assert.match(text, /locked in Google review/i);
+  assert.match(text, /rejected (?:on )?July 27/i);
+  assert.match(text, /trademark attribution and OAuth verification remediation/i);
   assert.doesNotMatch(text, /Marketplace submission steps remain/i);
   assert.match(text, /https:\/\/api\.oilpriceapi\.com\/product-facts\.json/);
+});
+
+test("Marketplace listing gives Google Sheets trademark attribution", () => {
+  const listing = fs.readFileSync(
+    path.join(ROOT, "MARKETPLACE_LISTING.md"),
+    "utf8",
+  );
+  assert.match(listing, /Application name: `OilPriceAPI for Google Sheets™`/);
+  assert.match(listing, /Google Sheets™ is a trademark of Google LLC\./);
+  assert.doesNotMatch(listing, /OilPriceAPI for Sheets(?!™)/);
 });
 
 test("public surfaces contain no unsupported mutable claims", () => {

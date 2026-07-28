@@ -132,7 +132,7 @@ function showSidebar() {
 function showAbout() {
   const ui = SpreadsheetApp.getUi();
   ui.alert(
-    'OilPriceAPI for Google Sheets',
+    'OilPriceAPI for Google Sheets™',
     `Version ${ADDON_VERSION}\n\n` +
       'Source-timestamped energy price data. Dataset access and freshness vary.\n\n' +
       'Google Workspace Marketplace publication is pending.\n\n' +

@@ -1,6 +1,6 @@
 {
   "name": "oilpriceapi-google-sheets-addin",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": true,
   "description": "Google Sheets Editor add-on for source-aware OilPriceAPI formulas",
   "license": "MIT",

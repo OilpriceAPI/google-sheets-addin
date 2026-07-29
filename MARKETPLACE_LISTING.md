@@ -38,12 +38,15 @@ Detailed description:
 > Dataset access, history, and freshness depend on the configured API key,
 > source, and account entitlement.
 >
-> The API key is stored in Apps Script document properties scoped to the
-> current spreadsheet so its formulas can retrieve data. It is not written to
-> spreadsheet cells, URLs, diagnostics, or browser-side HTML. Spreadsheet
-> editors can cause installed add-on formulas to make requests using the
-> configured key. Generic GET requests are restricted to a reviewed endpoint
-> catalog and reject credential-shaped query parameters.
+> The API key is stored in Apps Script properties scoped to the current
+> spreadsheet so its formulas can retrieve data. The primary copy uses
+> document properties. A compatibility copy uses the spreadsheet owner's user
+> properties with the spreadsheet ID in the property name for Google's
+> custom-function authorization context. It is not written to spreadsheet
+> cells, URLs, diagnostics, or browser-side HTML. Spreadsheet editors can cause
+> installed add-on formulas to make requests using the configured key. Generic
+> GET requests are restricted to a reviewed endpoint catalog and reject
+> credential-shaped query parameters.
 >
 > Google Sheets™ is a trademark of Google LLC.
 

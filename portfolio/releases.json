@@ -1,0 +1,31 @@
+{
+  "reviewedAt": "2026-07-29",
+  "products": {
+    "crack-spread-lab": {
+      "stage": "apps-script-test-version",
+      "scriptId": "1c2O84bJoprkUtyo8eHb-yYmz1Mtttpo-8miUrKf3o3rzrVXUBfFU8M5C",
+      "version": 2,
+      "description": "Crack Spread Lab 0.1.0 privacy-final test release",
+      "pushedAt": "2026-07-29T06:49:27Z"
+    },
+    "fuel-surcharge-studio": {
+      "stage": "apps-script-test-version",
+      "scriptId": "1Mii2a-nGgRmrnsV1rl_9wElmZfBrmhJgufYPqvDEjvN_s9xTQ8WHRtxN",
+      "version": 2,
+      "description": "Fuel Surcharge Studio 0.1.0 privacy-final test release",
+      "pushedAt": "2026-07-29T06:49:27Z"
+    },
+    "energy-curve-builder": {
+      "stage": "local-release-package",
+      "version": null
+    },
+    "bunker-voyage-planner": {
+      "stage": "local-release-package",
+      "version": null
+    },
+    "gas-spread-monitor": {
+      "stage": "local-release-package",
+      "version": null
+    }
+  }
+}

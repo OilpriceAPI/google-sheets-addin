@@ -4,8 +4,10 @@ Deployment-ready Editor add-on for source-aware OilPriceAPI formulas in Google
 Sheets™.
 
 > Google Workspace Marketplace publication is pending. The public listing was
-> submitted on July 26, 2026 and rejected on July 27 pending trademark
-> attribution and OAuth verification remediation. Do not claim Marketplace
+> submitted on July 26, 2026, rejected on July 27 pending trademark attribution
+> and OAuth verification remediation, and resubmitted on July 29 after the
+> listing, homepage, scopes, and Apps Script version were reconciled. Google
+> Cloud currently reports that the draft is in review. Do not claim Marketplace
 > availability until Google approves and publishes the listing.
 
 Dataset access, history, freshness, and limits depend on the API key, source,

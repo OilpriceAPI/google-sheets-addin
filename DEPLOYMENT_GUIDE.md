@@ -12,10 +12,11 @@ test installation, screenshots, and submission require the publisher account.
 - Current immutable Apps Script version: `9`
 - GitHub production release workflow:
   `https://github.com/OilpriceAPI/google-sheets-addin/actions/workflows/apps-script-release.yml`
-- Marketplace status: publication pending
+- Marketplace status: resubmitted July 29, 2026; draft in Google review
 - Runtime push/version and local deployment checks: complete
-- Required before submission: real Editor add-on test receipt and at least one
-  real 1280x800 screenshot
+- Marketplace review receipt and a real 1280x800 screenshot: complete
+- Separate OAuth verification dependency: add the end-to-end authorization
+  demo-video link to the prepared manual appeal and confirm it
 
 Do not claim Marketplace availability until Google publishes the listing.
 

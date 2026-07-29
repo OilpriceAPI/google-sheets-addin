@@ -1,8 +1,9 @@
 # Google Workspace Marketplace Listing
 
-Status: rejected July 27, 2026 pending trademark attribution and OAuth
-verification remediation. Do not claim Marketplace availability until Google
-approves and publishes the listing.
+Status: resubmitted July 29, 2026 and in Google review after trademark
+attribution, homepage, scope, and Apps Script version remediation. OAuth
+verification remains a separate release dependency. Do not claim Marketplace
+availability until Google approves and publishes the listing.
 
 ## App details
 
@@ -73,14 +74,17 @@ identity defaults for product behavior and does not request Drive-wide access.
 - Integration: Google Sheets Editor add-on
 - Install modes: individual and administrator
 - Regions: all regions
-- Review state: **Rejected — remediation in progress**
+- Review state: **In review — resubmitted July 29, 2026**
 - Rejection email received: **July 27, 2026**
+- Google Cloud receipt: **“The draft is in review and can't be edited.”**
 
-Google requires the OAuth consent screen to be **In production** and the three
-functional scopes above to match exactly in the Apps Script manifest,
-Marketplace SDK App Configuration, and OAuth consent screen. Google's default
-`userinfo.email` and `userinfo.profile` scopes remain in place. Do not resubmit
-until OAuth approval is complete.
+The OAuth consent screen is **In production** and the three functional scopes
+above match exactly in the Apps Script manifest, Marketplace SDK App
+Configuration, and OAuth consent screen. Google's default `userinfo.email` and
+`userinfo.profile` scopes remain in place. Google's automated homepage check
+incorrectly reported the public integration page as unresponsive; the manual
+appeal is prepared and requires an end-to-end OAuth demonstration video before
+it can be confirmed.
 
 ## Graphic assets
 

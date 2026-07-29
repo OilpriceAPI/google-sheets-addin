@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body { color:#102a43; font:14px/1.5 Arial,sans-serif; margin:0; padding:18px; }
+      h1 { color:#0f3557; font-size:20px; line-height:1.2; margin:0 0 6px; }
+      .muted { color:#627d98; font-size:12px; }
+      .card { background:#f0f7ff; border:1px solid #b8d8f0; border-radius:8px; margin:16px 0; padding:14px; }
+      input { border:1px solid #9fb3c8; border-radius:5px; box-sizing:border-box; padding:10px; width:100%; }
+      button { background:#0f6cbf; border:0; border-radius:5px; color:white; cursor:pointer; font-weight:700; margin-top:9px; padding:10px 12px; width:100%; }
+      button.secondary { background:#526d82; }
+      button.danger { background:#9b2c2c; }
+      button:disabled { cursor:wait; opacity:.55; }
+      a { color:#0f6cbf; }
+      #status { min-height:20px; margin-top:10px; }
+    </style>
+  </head>
+  <body>
+    <h1><?= productName ?></h1>
+    <p><?= tagline ?></p>
+    <div class="card">
+      <strong>OilPriceAPI key</strong>
+      <p class="muted">Stored only in this spreadsheet's Apps Script document properties. The stored value is never displayed.</p>
+      <input id="key" type="password" autocomplete="off" placeholder="Paste API key">
+      <button id="save" onclick="saveKey()">Save key</button>
+      <button class="secondary" id="test" onclick="testKey()">Test connection</button>
+      <button class="danger" id="delete" onclick="deleteKey()">Delete stored key</button>
+    </div>
+    <button id="build" onclick="buildWorkbook()">Build workbook</button>
+    <div id="status" role="status"></div>
+    <p class="muted">
+      Product requests include a product/version HTTP header so OilPriceAPI can measure activation and reliability.
+      No spreadsheet contents, formulas, or cell values are sent for analytics.
+    </p>
+    <p><a href="<?= signupUrl ?>">Create an API key</a> · <a href="<?= landingUrl ?>">Product guide</a></p>
+    <p class="muted">Google Sheets™ is a trademark of Google LLC.</p>
+    <script>
+      const builder = '<?= builder ?>';
+      const status = document.getElementById('status');
+      function busy(value) {
+        document.querySelectorAll('button').forEach((button) => { button.disabled = value; });
+      }
+      function success(message) { busy(false); status.textContent = message; status.style.color = '#137333'; }
+      function failure(error) { busy(false); status.textContent = error && error.message ? error.message : String(error); status.style.color = '#b42318'; }
+      function saveKey() {
+        busy(true);
+        const input = document.getElementById('key');
+        google.script.run.withSuccessHandler(() => { input.value = ''; success('Key saved for this spreadsheet.'); }).withFailureHandler(failure).saveApiKey(input.value);
+      }
+      function testKey() {
+        busy(true);
+        google.script.run.withSuccessHandler((result) => success(`Connection succeeded (${result.code}).`)).withFailureHandler(failure).testConnection();
+      }
+      function deleteKey() {
+        busy(true);
+        google.script.run.withSuccessHandler(() => success('Stored key deleted.')).withFailureHandler(failure).deleteApiKey();
+      }
+      function buildWorkbook() {
+        busy(true);
+        google.script.run.withSuccessHandler((result) => success(result.message)).withFailureHandler(failure)[builder]();
+      }
+      google.script.run.withSuccessHandler((state) => {
+        status.textContent = state.configured ? (state.activated ? 'Key configured · workbook activated' : 'Key configured') : 'No key configured';
+      }).withFailureHandler(failure).getSidebarState();
+    </script>
+  </body>
+</html>

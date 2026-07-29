@@ -1,0 +1,72 @@
+[
+  {
+    "id": "crack-spread-lab",
+    "name": "Crack Spread Lab by OilPriceAPI",
+    "menu": "Crack Spread Lab",
+    "builder": "buildCrackSpreadWorkbook",
+    "tagline": "Build a live 3-2-1 refinery margin model with history and sensitivity.",
+    "landingPath": "/integrations/crack-spread-lab",
+    "signupCampaign": "crack_spread_lab",
+    "activationHeader": "crack-spread-lab",
+    "allowedCodes": ["WTI_USD", "GASOLINE_USD", "HEATING_OIL_USD"],
+    "sheets": ["Crack Model", "Market Data", "History", "Sensitivity"],
+    "workflow": "Creates a refinery-margin workbook with product-yield math, unit conversion, historical context, and crude/product sensitivity.",
+    "category": "Accounting and Finance"
+  },
+  {
+    "id": "bunker-voyage-planner",
+    "name": "Bunker Voyage Planner by OilPriceAPI",
+    "menu": "Bunker Voyage Planner",
+    "builder": "buildBunkerVoyageWorkbook",
+    "tagline": "Compare port fuel choices and calculate voyage bunker cost.",
+    "landingPath": "/integrations/bunker-voyage-planner",
+    "signupCampaign": "bunker_voyage_planner",
+    "activationHeader": "bunker-voyage-planner",
+    "allowedCodes": ["VLSFO_SGSIN_USD", "MGO_05S_SGSIN_USD", "VLSFO_NLRTM_USD", "MGO_05S_NLRTM_USD", "VLSFO_USHOU_USD", "MGO_05S_USHOU_USD"],
+    "sheets": ["Voyage Plan", "Port Prices", "Scenario Compare"],
+    "workflow": "Creates a voyage-level fuel budget using vessel consumption, sailing days, port prices, fuel mix, and scenario comparisons.",
+    "category": "Productivity"
+  },
+  {
+    "id": "fuel-surcharge-studio",
+    "name": "Fuel Surcharge Studio by OilPriceAPI",
+    "menu": "Fuel Surcharge Studio",
+    "builder": "buildFuelSurchargeWorkbook",
+    "tagline": "Turn diesel indexes into auditable carrier surcharge schedules.",
+    "landingPath": "/integrations/fuel-surcharge-studio",
+    "signupCampaign": "fuel_surcharge_studio",
+    "activationHeader": "fuel-surcharge-studio",
+    "allowedCodes": ["DIESEL_RETAIL_USD", "DIESEL_RETAIL_EAST_COAST_USD", "DIESEL_RETAIL_MIDWEST_USD", "DIESEL_RETAIL_GULF_COAST_USD", "DIESEL_RETAIL_ROCKY_MOUNTAIN_USD", "DIESEL_RETAIL_WEST_COAST_USD"],
+    "sheets": ["Surcharge Calculator", "Regional Indexes", "Surcharge Table"],
+    "workflow": "Creates a freight surcharge workbook with regional diesel indexes, a transparent base-price formula, and a publishable band schedule.",
+    "category": "Accounting and Finance"
+  },
+  {
+    "id": "energy-curve-builder",
+    "name": "Energy Curve Builder by OilPriceAPI",
+    "menu": "Energy Curve Builder",
+    "builder": "buildEnergyCurveWorkbook",
+    "tagline": "Create futures curves, calendar spreads, and structure signals.",
+    "landingPath": "/integrations/energy-curve-builder",
+    "signupCampaign": "energy_curve_builder",
+    "activationHeader": "energy-curve-builder",
+    "allowedCodes": [],
+    "sheets": ["Curve Dashboard", "WTI Curve", "Brent Curve", "Calendar Spreads"],
+    "workflow": "Creates WTI and Brent term-structure tables, month-on-month calendar spreads, and contango/backwardation signals.",
+    "category": "Accounting and Finance"
+  },
+  {
+    "id": "gas-spread-monitor",
+    "name": "Gas Spread Monitor by OilPriceAPI",
+    "menu": "Gas Spread Monitor",
+    "builder": "buildGasSpreadWorkbook",
+    "tagline": "Normalize Henry Hub, TTF, and JKM to compare global gas spreads.",
+    "landingPath": "/integrations/gas-spread-monitor",
+    "signupCampaign": "gas_spread_monitor",
+    "activationHeader": "gas-spread-monitor",
+    "allowedCodes": ["NATURAL_GAS_USD", "DUTCH_TTF_EUR", "JKM_LNG_USD", "EUR_USD"],
+    "sheets": ["Gas Spread Monitor", "Market Data", "Conversion Audit"],
+    "workflow": "Creates a cross-market gas monitor that normalizes currencies and energy units before calculating TTF-Henry Hub and JKM-Henry Hub spreads.",
+    "category": "Accounting and Finance"
+  }
+]

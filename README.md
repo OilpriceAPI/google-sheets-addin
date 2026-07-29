@@ -54,9 +54,13 @@ The original `OILPRICE(code)` formula remains supported for existing sheets.
 
 ## Runtime and security contract
 
-- API keys are stored in Apps Script document properties scoped to the current
-  spreadsheet so custom formulas can use them. Editors of that spreadsheet can
-  cause add-on formulas to make requests with the configured key.
+- API keys are stored in Apps Script properties scoped to the current
+  spreadsheet. The primary copy uses document properties; a compatibility copy
+  uses the spreadsheet owner's user properties with the spreadsheet ID in the
+  property name so Google's custom-function authorization context can retrieve
+  the key without making it available to another spreadsheet. The spreadsheet
+  owner should configure the key. Editors of that spreadsheet can cause add-on
+  formulas to make requests with the configured key.
 - The sidebar receives only configured/not-configured state; it never reads the
   stored key into browser-side HTML.
 - Generic GET calls are restricted to the same reviewed endpoint catalog as
@@ -115,7 +119,7 @@ npm run clasp:login
 read -r "OPA_SCRIPT_ID?Apps Script ID: "
 npm run clasp:configure -- "$OPA_SCRIPT_ID"
 npm run deploy:push
-npm run deploy:version -- "OilPriceAPI for Google Sheets 1.2.0"
+npm run deploy:version -- "OilPriceAPI for Google Sheets 1.2.2 formula credential context fix"
 ```
 
 Editor add-on publication uses the Apps Script **script ID and version

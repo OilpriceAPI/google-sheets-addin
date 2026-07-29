@@ -49,6 +49,7 @@ function createHarness() {
   const cache = new Map();
   const responses = [];
   const requests = [];
+  let activeSpreadsheetId = "sheet-a";
 
   const propertyStore = (values) => ({
     getProperty: (key) => values.get(key) || null,
@@ -74,7 +75,11 @@ function createHarness() {
       getDocumentProperties: () => documentProperties,
       getUserProperties: () => userProperties,
     },
-    SpreadsheetApp: {},
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => ({
+        getId: () => activeSpreadsheetId,
+      }),
+    },
     String,
     UrlFetchApp: {
       fetch(url, options) {
@@ -111,6 +116,9 @@ function createHarness() {
       responses.push(error);
     },
     requests,
+    setActiveSpreadsheetId(value) {
+      activeSpreadsheetId = value;
+    },
     userPropertyValues,
   };
 }
@@ -224,6 +232,18 @@ test("credential lifecycle never returns the stored key", () => {
   );
 });
 
+test("credential save fails closed without an active spreadsheet ID", () => {
+  const harness = createHarness();
+  harness.context.SpreadsheetApp.getActiveSpreadsheet = () => null;
+
+  assert.throws(
+    () => harness.context.saveApiKey("test-key-not-a-secret"),
+    /open the OilPriceAPI sidebar from a Google Sheet/i,
+  );
+  assert.equal(harness.documentPropertyValues.size, 0);
+  assert.equal(harness.userPropertyValues.size, 0);
+});
+
 test("spreadsheet-scoped key survives the custom-function user identity boundary", () => {
   const harness = createHarness();
   configure(harness);
@@ -238,6 +258,47 @@ test("spreadsheet-scoped key survives the custom-function user identity boundary
   assert.match(
     harness.requests[0].options.headers.Authorization,
     /^Token test-key-not-a-secret$/,
+  );
+});
+
+test("custom functions use a spreadsheet-scoped owner fallback when document properties are unavailable", () => {
+  const harness = createHarness();
+  harness.context.saveApiKey("test-key-not-a-secret");
+  assert.equal(
+    harness.userPropertyValues.get("OILPRICEAPI_KEY:sheet-a"),
+    "test-key-not-a-secret",
+  );
+  harness.context.PropertiesService.getDocumentProperties = () => null;
+  harness.queue(200, latestBody());
+
+  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+  assert.equal(
+    harness.requests[0].options.headers.Authorization,
+    "Token test-key-not-a-secret",
+  );
+});
+
+test("spreadsheet-scoped owner fallback never crosses into another spreadsheet", () => {
+  const harness = createHarness();
+  harness.context.saveApiKey("sheet-a-key");
+  harness.setActiveSpreadsheetId("sheet-b");
+  harness.context.PropertiesService.getDocumentProperties = () => null;
+
+  assert.match(
+    harness.context.OILPRICE_PRICE("WTI_USD"),
+    /^#AUTH_REQUIRED:/,
+  );
+});
+
+test("deleting a key removes both document and spreadsheet-scoped owner stores", () => {
+  const harness = createHarness();
+  harness.context.saveApiKey("test-key-not-a-secret");
+  harness.context.deleteApiKey();
+
+  assert.equal(harness.documentPropertyValues.has("OILPRICEAPI_KEY"), false);
+  assert.equal(
+    harness.userPropertyValues.has("OILPRICEAPI_KEY:sheet-a"),
+    false,
   );
 });
 

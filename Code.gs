@@ -6,7 +6,7 @@
  */
 
 const API_BASE_URL = 'https://api.oilpriceapi.com/v1';
-const ADDON_VERSION = '1.2.1';
+const ADDON_VERSION = '1.2.2';
 const KEY_PROPERTY = 'OILPRICEAPI_KEY';
 const LAST_DIAGNOSTIC_PROPERTY = 'OILPRICEAPI_LAST_DIAGNOSTIC';
 const MAX_BATCH_CODES = 25;
@@ -150,6 +150,22 @@ function getDocumentProperties_() {
   }
 }
 
+function getActiveSpreadsheetId_() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    return spreadsheet && typeof spreadsheet.getId === 'function'
+      ? spreadsheet.getId()
+      : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function getSpreadsheetKeyProperty_() {
+  const spreadsheetId = getActiveSpreadsheetId_();
+  return spreadsheetId ? `${KEY_PROPERTY}:${spreadsheetId}` : null;
+}
+
 function getApiKey_() {
   const documentProperties = getDocumentProperties_();
   const documentKey = documentProperties
@@ -157,8 +173,19 @@ function getApiKey_() {
     : null;
   if (documentKey) return documentKey;
 
+  // Custom functions run in a distinct authorization context where Google can
+  // make document properties unavailable. User properties resolve to the
+  // spreadsheet owner in that context, so key the compatibility copy by the
+  // active spreadsheet ID to prevent credentials crossing between sheets.
+  const userProperties = PropertiesService.getUserProperties();
+  const spreadsheetKeyProperty = getSpreadsheetKeyProperty_();
+  const spreadsheetKey = spreadsheetKeyProperty
+    ? userProperties.getProperty(spreadsheetKeyProperty)
+    : null;
+  if (spreadsheetKey) return spreadsheetKey;
+
   // Migration fallback for keys saved by releases before Apps Script version 6.
-  return PropertiesService.getUserProperties().getProperty(KEY_PROPERTY);
+  return userProperties.getProperty(KEY_PROPERTY);
 }
 
 function requireApiKey_() {
@@ -180,11 +207,20 @@ function saveApiKey(apiKey) {
       'Open the OilPriceAPI sidebar from a Google Sheet before saving the API key.'
     );
   }
+  const spreadsheetKeyProperty = getSpreadsheetKeyProperty_();
+  if (!spreadsheetKeyProperty) {
+    throw makeError_(
+      'ADDON_CONTEXT_REQUIRED',
+      'Open the OilPriceAPI sidebar from a Google Sheet before saving the API key.'
+    );
+  }
   documentProperties.setProperty(KEY_PROPERTY, apiKey.trim());
-  PropertiesService.getUserProperties().deleteProperty(KEY_PROPERTY);
+  const userProperties = PropertiesService.getUserProperties();
+  userProperties.setProperty(spreadsheetKeyProperty, apiKey.trim());
+  userProperties.deleteProperty(KEY_PROPERTY);
   return {
     success: true,
-    message: 'API key saved for this spreadsheet in Apps Script document properties.'
+    message: 'API key saved for this spreadsheet in Apps Script properties.'
   };
 }
 
@@ -194,8 +230,11 @@ function deleteApiKey() {
     documentProperties.deleteProperty(KEY_PROPERTY);
     documentProperties.deleteProperty(LAST_DIAGNOSTIC_PROPERTY);
   }
-  PropertiesService.getUserProperties().deleteProperty(KEY_PROPERTY);
-  PropertiesService.getUserProperties().deleteProperty(LAST_DIAGNOSTIC_PROPERTY);
+  const userProperties = PropertiesService.getUserProperties();
+  const spreadsheetKeyProperty = getSpreadsheetKeyProperty_();
+  if (spreadsheetKeyProperty) userProperties.deleteProperty(spreadsheetKeyProperty);
+  userProperties.deleteProperty(KEY_PROPERTY);
+  userProperties.deleteProperty(LAST_DIAGNOSTIC_PROPERTY);
   return {
     success: true,
     message: 'Stored spreadsheet API key and request diagnostic deleted.'

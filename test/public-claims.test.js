@@ -40,6 +40,36 @@ test("Marketplace listing gives Google Sheets trademark attribution", () => {
   assert.doesNotMatch(listing, /OilPriceAPI for Sheets(?!™)/);
 });
 
+test("operator records preserve the exact release and Google submission state", () => {
+  const deployment = fs.readFileSync(
+    path.join(ROOT, "DEPLOYMENT_GUIDE.md"),
+    "utf8",
+  );
+  const listing = fs.readFileSync(
+    path.join(ROOT, "MARKETPLACE_LISTING.md"),
+    "utf8",
+  );
+  const oauth = fs.readFileSync(
+    path.join(ROOT, "OAUTH_VERIFICATION.md"),
+    "utf8",
+  );
+  const records = `${deployment}\n${listing}\n${oauth}`;
+
+  assert.match(deployment, /Runtime version: `1\.2\.1`/);
+  assert.match(deployment, /Current immutable Apps Script version: `10`/);
+  assert.match(listing, /Marketplace draft Apps Script version: `9`/);
+  assert.match(listing, /OAuth submission state: \*\*not submitted\*\*/);
+  assert.match(oauth, /OAuth verification has \*\*not been submitted\*\*/);
+  assert.match(
+    records,
+    /https:\/\/github\.com\/OilpriceAPI\/google-sheets-addin\/issues\/20/,
+  );
+  assert.doesNotMatch(
+    records,
+    /Current immutable Apps Script version: `9`/,
+  );
+});
+
 test("sidebar gives an in-product privacy notice and policy links", () => {
   const sidebar = fs.readFileSync(path.join(ROOT, "Sidebar.html"), "utf8");
 

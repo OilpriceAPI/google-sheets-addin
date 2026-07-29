@@ -12,6 +12,7 @@ const PUBLIC_FILES = [
   "Sidebar.html",
   "FetchDialog.html",
   "MARKETPLACE_LISTING.md",
+  "OAUTH_VERIFICATION.md",
   "docs/index.html",
   "package.json",
   "test/README.md",

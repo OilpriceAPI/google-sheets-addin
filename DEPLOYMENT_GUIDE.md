@@ -107,7 +107,8 @@ Drive-wide access or additional functional scopes.
 If Google requires OAuth verification, submit the requested scope
 justifications and a demo video showing installation, authorization, API-key
 configuration, a formula result, and key deletion. The prepared justification
-text is in `MARKETPLACE_LISTING.md`.
+text is in `MARKETPLACE_LISTING.md`; the exact branding values, scope
+justifications, and recording sequence are in `OAUTH_VERIFICATION.md`.
 
 ## 5. Install a test Editor add-on
 

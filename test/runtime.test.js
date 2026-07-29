@@ -211,9 +211,17 @@ test("credential lifecycle never returns the stored key", () => {
     { configured: true },
   );
 
+  harness.documentPropertyValues.set(
+    "OILPRICEAPI_LAST_DIAGNOSTIC",
+    JSON.stringify({ code: "OK" }),
+  );
   harness.context.deleteApiKey();
   assert.equal(harness.context.getApiKeyStatus().configured, false);
   assert.equal(harness.documentPropertyValues.has("OILPRICEAPI_KEY"), false);
+  assert.equal(
+    harness.documentPropertyValues.has("OILPRICEAPI_LAST_DIAGNOSTIC"),
+    false,
+  );
 });
 
 test("spreadsheet-scoped key survives the custom-function user identity boundary", () => {

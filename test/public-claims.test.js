@@ -39,6 +39,29 @@ test("Marketplace listing gives Google Sheets trademark attribution", () => {
   assert.doesNotMatch(listing, /OilPriceAPI for Sheets(?!™)/);
 });
 
+test("sidebar gives an in-product privacy notice and policy links", () => {
+  const sidebar = fs.readFileSync(path.join(ROOT, "Sidebar.html"), "utf8");
+
+  assert.match(
+    sidebar,
+    /works only in the spreadsheet where you open it/i,
+  );
+  assert.match(
+    sidebar,
+    /sends only your API key and requested market identifiers to OilPriceAPI/i,
+  );
+  assert.match(
+    sidebar,
+    /https:\/\/www\.oilpriceapi\.com\/privacy\/google-sheets-addon/,
+  );
+  assert.match(
+    sidebar,
+    /https:\/\/www\.oilpriceapi\.com\/terms\/google-sheets-addon/,
+  );
+  assert.match(sidebar, /Google API Services User Data Policy/i);
+  assert.match(sidebar, /Limited Use requirements/i);
+});
+
 test("public surfaces contain no unsupported mutable claims", () => {
   const text = PUBLIC_FILES.map((file) =>
     fs.readFileSync(path.join(ROOT, file), "utf8"),

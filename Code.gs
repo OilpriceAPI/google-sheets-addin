@@ -6,7 +6,7 @@
  */
 
 const API_BASE_URL = 'https://api.oilpriceapi.com/v1';
-const ADDON_VERSION = '1.2.0';
+const ADDON_VERSION = '1.2.1';
 const KEY_PROPERTY = 'OILPRICEAPI_KEY';
 const LAST_DIAGNOSTIC_PROPERTY = 'OILPRICEAPI_LAST_DIAGNOSTIC';
 const MAX_BATCH_CODES = 25;
@@ -190,9 +190,16 @@ function saveApiKey(apiKey) {
 
 function deleteApiKey() {
   const documentProperties = getDocumentProperties_();
-  if (documentProperties) documentProperties.deleteProperty(KEY_PROPERTY);
+  if (documentProperties) {
+    documentProperties.deleteProperty(KEY_PROPERTY);
+    documentProperties.deleteProperty(LAST_DIAGNOSTIC_PROPERTY);
+  }
   PropertiesService.getUserProperties().deleteProperty(KEY_PROPERTY);
-  return { success: true, message: 'Stored spreadsheet API key deleted.' };
+  PropertiesService.getUserProperties().deleteProperty(LAST_DIAGNOSTIC_PROPERTY);
+  return {
+    success: true,
+    message: 'Stored spreadsheet API key and request diagnostic deleted.'
+  };
 }
 
 function getApiKeyStatus() {

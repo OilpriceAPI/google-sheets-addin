@@ -4,6 +4,56 @@ This packet is for the production Google Cloud project
 `oilpriceapi-sheets-addon` (`991152473434`) and the original
 `OilPriceAPI for Google Sheets™` add-on.
 
+## Status as of July 29, 2026
+
+Completed release evidence:
+
+- Add-on PR 19 merged as
+  `799f49f46059340ed332431f5c7ac87f5c91a695`.
+- All 49 runtime, recovery, disclosure, deployment-package, asset, portfolio,
+  and secret-scan checks passed.
+- The exact merged runtime was pushed to the production Apps Script project.
+- Immutable Apps Script version 10 was created with description
+  `OilPriceAPI for Google Sheets 1.2.1 OAuth verification`.
+- A fresh clone of version 10 matched the four-file reviewed release package
+  exactly.
+- Website PR 1461 merged as
+  `c3acb510680992538315781fb0ce3dcec335bf20`.
+- Production deployment
+  `https://github.com/OilpriceAPI/website-clean/actions/runs/30434284989`
+  completed successfully, including production and money-page smoke checks
+  and a Cloudflare purge.
+- Cache-busted checks returned HTTP 200 without a cross-domain redirect for
+  the homepage, privacy policy, and terms. The responses contained the
+  expected scope, Limited Use, and current-formula disclosures.
+- DigitalOcean deployment `65aaf4e7-df6a-44aa-a89b-de796963e442` is ACTIVE.
+  Its first 500 runtime log lines contained no matched errors, warnings,
+  retries, timeouts, or 5xx responses.
+
+Current Google state:
+
+- The Marketplace version 9 draft is in review and cannot currently be edited.
+- Apps Script version 10 is prepared but is not yet selected in the locked
+  Marketplace App Configuration.
+- OAuth publishing status is **In production**.
+- OAuth branding is **not verified**.
+- OAuth data access is **not verified**.
+- OAuth verification has **not been submitted**.
+- No public OAuth demonstration URL or Google submission receipt exists yet.
+
+Remaining owner-session work:
+
+1. Confirm that a Cloud project owner/editor is a verified Search Console owner
+   for `oilpriceapi.com`.
+2. Record and publish the continuous end-to-end OAuth demonstration below.
+3. Update Marketplace App Configuration to Apps Script version 10 when Google
+   makes the reviewed draft editable.
+4. Submit OAuth branding and data-access verification with the exact scopes,
+   justifications, and public video URL.
+5. Capture the confirmation text, date, case/reference ID if present, and
+   redacted screenshots in issue 20:
+   `https://github.com/OilpriceAPI/google-sheets-addin/issues/20`.
+
 ## Branding values
 
 Use the same values everywhere Google displays or reviews the app:

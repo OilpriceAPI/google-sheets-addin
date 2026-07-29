@@ -6,17 +6,22 @@ test installation, screenshots, and submission require the publisher account.
 
 ## Current release gate
 
-- Runtime version: `1.2.0`
+- Runtime version: `1.2.1`
 - Production Apps Script ID:
   `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`
-- Current immutable Apps Script version: `9`
+- Current immutable Apps Script version: `10`
 - GitHub production release workflow:
   `https://github.com/OilpriceAPI/google-sheets-addin/actions/workflows/apps-script-release.yml`
-- Marketplace status: resubmitted July 29, 2026; draft in Google review
+- Marketplace status: version 9 draft resubmitted July 29, 2026 and locked in
+  Google review; update it to version 10 when App Configuration is editable
 - Runtime push/version and local deployment checks: complete
 - Marketplace review receipt and a real 1280x800 screenshot: complete
-- Separate OAuth verification dependency: add the end-to-end authorization
-  demo-video link to the prepared manual appeal and confirm it
+- Public homepage, privacy policy, and terms deployment: complete
+- Separate OAuth verification dependency: confirm Search Console ownership,
+  record the end-to-end authorization demo, submit branding and data-access
+  verification, and preserve the confirmation receipt
+- Canonical remaining-work issue:
+  `https://github.com/OilpriceAPI/google-sheets-addin/issues/20`
 
 Do not claim Marketplace availability until Google publishes the listing.
 
@@ -179,7 +184,7 @@ screenshots until they have been reviewed for secrets and customer data.
 After the smoke passes against the exact pushed source:
 
 ```bash
-npm run deploy:version -- "OilPriceAPI for Google Sheets 1.2.0"
+npm run deploy:version -- "OilPriceAPI for Google Sheets 1.2.1"
 npm run deploy:list
 ```
 

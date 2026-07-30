@@ -4,6 +4,10 @@ This repository contains five distinct Google Workspace Marketplace candidates.
 They share a security and release runtime, but each product creates a different
 finished workbook for a different buyer and workflow.
 
+All five now have immutable Apps Script 1.0.0 candidates. See
+`PORTFOLIO_SUBMISSION_READINESS.md` for the exact Script IDs, versions,
+remaining Google Console evidence, and hold point.
+
 | Product | Primary buyer | Activated outcome | Acquisition keyword wedge |
 | --- | --- | --- | --- |
 | Crack Spread Lab by OilPriceAPI | Refinery analyst or energy trader | Live refinery-margin workbook with history and sensitivity | crack spread spreadsheet |
@@ -63,6 +67,17 @@ npm run portfolio:verify
 npm run validate
 ```
 
+Account-independent release verification:
+
+```bash
+npm run test:portfolio:live
+npm run portfolio:verify:remote
+npm run portfolio:verify:links
+```
+
+The live smoke requires `OILPRICEAPI_KEY` to be set to a synthetic non-customer
+test credential. It never prints the credential.
+
 Deployable Apps Script roots are written to `portfolio/dist/<product-id>/`.
 Run clasp from the selected product directory so its `.claspignore` exposes only
 `Code.gs`, `Sidebar.html`, and `appsscript.json`.
@@ -76,8 +91,9 @@ Run clasp from the selected product directory so its `.claspignore` exposes only
 5. Gas Spread Monitor
 
 The first two have the clearest non-overlapping search intent and quickest
-time-to-value. Start their test deployments first, measure activation, then
-promote the strongest funnel before submitting the next Marketplace listing.
+time-to-value. Their Apps Script candidates are already versioned. Prepare the
+Cloud/OAuth/Marketplace draft for Crack Spread Lab first, measure activation,
+then promote the strongest funnel before submitting the next listing.
 
 Do not submit all five simultaneously. Complete the original add-on's OAuth
 review, then take Crack Spread Lab through the full installed-draft smoke and

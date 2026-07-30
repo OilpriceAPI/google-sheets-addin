@@ -7,6 +7,7 @@
       h1 { color:#0f3557; font-size:20px; line-height:1.2; margin:0 0 6px; }
       .muted { color:#627d98; font-size:12px; }
       .card { background:#f0f7ff; border:1px solid #b8d8f0; border-radius:8px; margin:16px 0; padding:14px; }
+      .notice { background:#f8fafc; border-left:4px solid #0f6cbf; margin:16px 0; padding:10px 12px; }
       input { border:1px solid #9fb3c8; border-radius:5px; box-sizing:border-box; padding:10px; width:100%; }
       button { background:#0f6cbf; border:0; border-radius:5px; color:white; cursor:pointer; font-weight:700; margin-top:9px; padding:10px 12px; width:100%; }
       button.secondary { background:#526d82; }
@@ -28,13 +29,23 @@
       <button class="danger" id="delete" onclick="deleteKey()">Delete stored key</button>
     </div>
     <button id="build" onclick="buildWorkbook()">Build workbook</button>
-    <div id="status" role="status"></div>
-    <p class="muted">
-      Product requests include a product/version HTTP header so OilPriceAPI can measure activation and reliability.
-      No spreadsheet contents, formulas, or cell values are sent for analytics.
-    </p>
+    <div id="status" role="status" aria-live="polite"></div>
+    <div class="notice">
+      <strong>Data use</strong>
+      <p class="muted">
+        Your key is stored for this spreadsheet in Apps Script properties and is never displayed after saving.
+        Only the key and reviewed market identifiers are sent to OilPriceAPI when you test or build.
+        Spreadsheet contents, formulas, cell values, and Google account identity are not sent for analytics.
+        Your OilPriceAPI account email does not need to match your Google account.
+      </p>
+    </div>
     <p><a href="<?= signupUrl ?>">Create an API key</a> · <a href="<?= landingUrl ?>">Product guide</a></p>
-    <p class="muted">Google Sheets™ is a trademark of Google LLC.</p>
+    <p class="muted">
+      <a href="https://www.oilpriceapi.com/privacy/workspace-addons">Privacy</a> ·
+      <a href="https://www.oilpriceapi.com/terms/workspace-addons">Terms</a> ·
+      <a href="https://www.oilpriceapi.com/support">Support</a>
+    </p>
+    <p class="muted">Version <?= version ?> · Google Sheets™ is a trademark of Google LLC. Not affiliated with or endorsed by Google LLC.</p>
     <script>
       const builder = '<?= builder ?>';
       const status = document.getElementById('status');
@@ -50,7 +61,7 @@
       }
       function testKey() {
         busy(true);
-        google.script.run.withSuccessHandler((result) => success(`Connection succeeded (${result.code}).`)).withFailureHandler(failure).testConnection();
+        google.script.run.withSuccessHandler((result) => success(`${result.message} (${result.code})`)).withFailureHandler(failure).testConnection();
       }
       function deleteKey() {
         busy(true);

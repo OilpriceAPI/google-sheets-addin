@@ -135,6 +135,11 @@ The reusable launch and troubleshooting lessons are in
 public-video acquisition experiment is in
 [YOUTUBE_PROMOTION.md](YOUTUBE_PROMOTION.md).
 
+The five follow-on products and rollout order are in
+[PORTFOLIO.md](PORTFOLIO.md). Their immutable Apps Script candidates and
+remaining Google Console gates are tracked in
+[PORTFOLIO_SUBMISSION_READINESS.md](PORTFOLIO_SUBMISSION_READINESS.md).
+
 ## Canonical links
 
 - [Product facts](https://api.oilpriceapi.com/product-facts.json)

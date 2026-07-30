@@ -1,6 +1,9 @@
 function calculateVoyageFuelCost_(seaDays, seaConsumption, portDays, portConsumption, vlsfoShare, vlsfoPrice, mgoPrice) {
   const values = [seaDays, seaConsumption, portDays, portConsumption, vlsfoShare, vlsfoPrice, mgoPrice].map(Number);
   if (!values.every(Number.isFinite)) throw new Error('Voyage-cost inputs must be finite numbers.');
+  if ([values[0], values[1], values[2], values[3], values[5], values[6]].some((value) => value < 0)) {
+    throw new Error('Voyage days, consumption, and fuel prices must be non-negative.');
+  }
   if (values[4] < 0 || values[4] > 1) throw new Error('VLSFO share must be between 0 and 1.');
   const tonnes = (values[0] * values[1]) + (values[2] * values[3]);
   const blendedPrice = (values[4] * values[5]) + ((1 - values[4]) * values[6]);
@@ -44,6 +47,7 @@ function buildBunkerVoyageWorkbook() {
     ['VLSFO share', 0.9, 'fraction'],
     ['Total fuel', singapore.tonnes, 'metric tonnes']
   ]);
+  plan.getRange('B10').setFormula('=(B5*B6)+(B7*B8)');
   plan.getRange('B9').setNumberFormat('0.0%');
 
   const compare = sheet_('Scenario Compare');
@@ -54,6 +58,13 @@ function buildBunkerVoyageWorkbook() {
     ['Rotterdam', rotterdam.tonnes, rotterdam.blendedPrice, rotterdam.totalCost, rotterdam.totalCost - Math.min(singapore.totalCost, rotterdam.totalCost, houston.totalCost)],
     ['Houston', houston.tonnes, houston.blendedPrice, houston.totalCost, houston.totalCost - Math.min(singapore.totalCost, rotterdam.totalCost, houston.totalCost)]
   ]);
+  const scenarioFormulas = [5, 6, 7].map((row) => [
+    `='Voyage Plan'!$B$10`,
+    `='Voyage Plan'!$B$9*SUMIFS('Port Prices'!$C:$C,'Port Prices'!$A:$A,A${row},'Port Prices'!$B:$B,"VLSFO")+(1-'Voyage Plan'!$B$9)*SUMIFS('Port Prices'!$C:$C,'Port Prices'!$A:$A,A${row},'Port Prices'!$B:$B,"MGO 0.5%")`,
+    `=B${row}*C${row}`,
+    `=D${row}-MIN($D$5:$D$7)`
+  ]);
+  compare.getRange(5, 2, 3, 4).setFormulas(scenarioFormulas);
   compare.getRange(5, 3, 3, 3).setNumberFormat('$#,##0.00');
 
   activateProduct_();

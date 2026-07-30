@@ -1,6 +1,7 @@
 function normalizeGasMarkets_(henryHubUsdMmbtu, ttfEurMwh, jkmUsdMmbtu, eurUsd) {
   const values = [henryHubUsdMmbtu, ttfEurMwh, jkmUsdMmbtu, eurUsd].map(Number);
-  if (!values.every(Number.isFinite) || values[3] <= 0) throw new Error('Gas-market inputs and FX must be finite positive values.');
+  if (!values.every(Number.isFinite)) throw new Error('Gas-market inputs and FX must be finite.');
+  if (values[3] <= 0) throw new Error('EUR/USD must be positive.');
   const ttfUsdMmbtu = (values[1] * values[3]) / 3.412141633;
   return {
     henryHub: values[0],
@@ -35,6 +36,7 @@ function buildGasSpreadWorkbook() {
     ['Energy conversion', 3.412141633, 'MMBtu per MWh'],
     ['TTF normalized', normalized.ttf, 'USD/MMBtu']
   ]);
+  audit.getRange('B8').setFormula('=B5*B6/B7');
   audit.getRange('B5:B8').setNumberFormat('0.0000');
 
   const monitor = sheet_('Gas Spread Monitor');
@@ -50,6 +52,16 @@ function buildGasSpreadWorkbook() {
     ['TTF minus Henry Hub', normalized.ttfHenryHub, 'USD/MMBtu'],
     ['JKM minus Henry Hub', normalized.jkmHenryHub, 'USD/MMBtu'],
     ['JKM minus TTF', normalized.jkmTtf, 'USD/MMBtu']
+  ]);
+  monitor.getRange('B5:B7').setFormulas([
+    ['=VLOOKUP("NATURAL_GAS_USD",\'Market Data\'!A:B,2,FALSE)'],
+    ['=\'Conversion Audit\'!B8'],
+    ['=VLOOKUP("JKM_LNG_USD",\'Market Data\'!A:B,2,FALSE)']
+  ]);
+  monitor.getRange('B11:B13').setFormulas([
+    ['=B6-B5'],
+    ['=B7-B5'],
+    ['=B7-B6']
   ]);
   monitor.getRange('B5:B7').setNumberFormat('$0.000');
   monitor.getRange('B11:B13').setNumberFormat('$0.000');

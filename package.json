@@ -7,9 +7,12 @@
   "scripts": {
     "test": "node --test test/runtime.test.js test/public-claims.test.js",
     "test:portfolio": "node --test test/portfolio.test.js",
+    "test:portfolio:live": "node test/portfolio-live-smoke.js",
     "test:live": "node test/live-smoke.js",
     "portfolio:build": "node scripts/build-portfolio.js",
     "portfolio:verify": "node scripts/verify-portfolio.js",
+    "portfolio:verify:remote": "node scripts/verify-apps-script-releases.js",
+    "portfolio:verify:links": "node scripts/verify-portfolio-links.js",
     "assets": "node scripts/generate-marketplace-assets.js",
     "verify:assets": "node scripts/verify-marketplace-assets.js",
     "verify:deploy": "node scripts/verify-deploy-package.js",

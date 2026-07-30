@@ -6,7 +6,7 @@
 const OPA_API_BASE_URL = 'https://api.oilpriceapi.com/v1';
 const OPA_KEY_PROPERTY = 'OILPRICEAPI_KEY';
 const OPA_ACTIVATED_PROPERTY = 'OILPRICEAPI_ACTIVATED_AT';
-const OPA_VERSION = '0.1.0';
+const OPA_VERSION = OPA_PRODUCT.version;
 const OPA_SIGNUP_URL = 'https://www.oilpriceapi.com/auth/signup';
 const OPA_ALLOWED_SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets.currentonly',
@@ -36,6 +36,7 @@ function showSidebar() {
   html.productName = OPA_PRODUCT.name;
   html.tagline = OPA_PRODUCT.tagline;
   html.builder = OPA_PRODUCT.builder;
+  html.version = OPA_VERSION;
   html.signupUrl = signupUrl_();
   html.landingUrl = landingUrl_();
   SpreadsheetApp.getUi().showSidebar(
@@ -63,9 +64,43 @@ function documentProperties_() {
   }
 }
 
+function activeSpreadsheetId_() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    return spreadsheet && typeof spreadsheet.getId === 'function'
+      ? spreadsheet.getId()
+      : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function spreadsheetKeyProperty_() {
+  const spreadsheetId = activeSpreadsheetId_();
+  return spreadsheetId ? `${OPA_KEY_PROPERTY}:${spreadsheetId}` : null;
+}
+
 function getApiKey_() {
-  const properties = documentProperties_();
-  return properties ? properties.getProperty(OPA_KEY_PROPERTY) : null;
+  const documentProperties = documentProperties_();
+  const documentKey = documentProperties
+    ? documentProperties.getProperty(OPA_KEY_PROPERTY)
+    : null;
+  if (documentKey) return documentKey;
+
+  // Installed add-on custom functions can run in a separate Apps Script
+  // authorization context where document properties are unavailable. Keep a
+  // compatibility copy in owner user properties, namespaced by spreadsheet ID,
+  // so the key cannot cross into another workbook.
+  const userProperties = PropertiesService.getUserProperties();
+  const spreadsheetKeyProperty = spreadsheetKeyProperty_();
+  const spreadsheetKey = spreadsheetKeyProperty
+    ? userProperties.getProperty(spreadsheetKeyProperty)
+    : null;
+  if (spreadsheetKey) return spreadsheetKey;
+
+  // Migration fallback for the two prototype releases. Saving again removes
+  // this unscoped value.
+  return userProperties.getProperty(OPA_KEY_PROPERTY);
 }
 
 function requireApiKey_() {
@@ -79,18 +114,28 @@ function requireApiKey_() {
 function saveApiKey(apiKey) {
   const value = typeof apiKey === 'string' ? apiKey.trim() : '';
   if (!value || value.length > 512) throw new Error('Enter a valid OilPriceAPI key.');
-  const properties = documentProperties_();
-  if (!properties) throw new Error('Open the add-on from a spreadsheet before saving a key.');
-  properties.setProperty(OPA_KEY_PROPERTY, value);
+  const documentProperties = documentProperties_();
+  const spreadsheetKeyProperty = spreadsheetKeyProperty_();
+  if (!documentProperties || !spreadsheetKeyProperty) {
+    throw new Error('Open the add-on from a spreadsheet before saving a key.');
+  }
+  documentProperties.setProperty(OPA_KEY_PROPERTY, value);
+  const userProperties = PropertiesService.getUserProperties();
+  userProperties.setProperty(spreadsheetKeyProperty, value);
+  userProperties.deleteProperty(OPA_KEY_PROPERTY);
   return { success: true, configured: true };
 }
 
 function deleteApiKey() {
-  const properties = documentProperties_();
-  if (properties) {
-    properties.deleteProperty(OPA_KEY_PROPERTY);
-    properties.deleteProperty(OPA_ACTIVATED_PROPERTY);
+  const documentProperties = documentProperties_();
+  if (documentProperties) {
+    documentProperties.deleteProperty(OPA_KEY_PROPERTY);
+    documentProperties.deleteProperty(OPA_ACTIVATED_PROPERTY);
   }
+  const userProperties = PropertiesService.getUserProperties();
+  const spreadsheetKeyProperty = spreadsheetKeyProperty_();
+  if (spreadsheetKeyProperty) userProperties.deleteProperty(spreadsheetKeyProperty);
+  userProperties.deleteProperty(OPA_KEY_PROPERTY);
   return { success: true, configured: false };
 }
 
@@ -127,18 +172,24 @@ function requestJson_(path, apiKey) {
   if (!normalizedPath.startsWith('/') || normalizedPath.includes('://') || normalizedPath.includes('..')) {
     throw new Error('Unsupported OilPriceAPI path.');
   }
-  const response = UrlFetchApp.fetch(`${OPA_API_BASE_URL}${normalizedPath}`, {
-    method: 'get',
-    headers: {
-      Authorization: `Token ${apiKey}`,
-      Accept: 'application/json',
-      'X-OilPriceAPI-Client': `${OPA_PRODUCT.activationHeader}/${OPA_VERSION}`
-    },
-    muteHttpExceptions: true
-  });
+  let response;
+  try {
+    response = UrlFetchApp.fetch(`${OPA_API_BASE_URL}${normalizedPath}`, {
+      method: 'get',
+      headers: {
+        Authorization: `Token ${apiKey}`,
+        Accept: 'application/json',
+        'X-OilPriceAPI-Client': `${OPA_PRODUCT.activationHeader}/${OPA_VERSION}`
+      },
+      muteHttpExceptions: true
+    });
+  } catch (error) {
+    throw new Error('OilPriceAPI could not be reached. Check the connection and retry.');
+  }
   const status = response.getResponseCode();
   if (status === 401) throw new Error('The OilPriceAPI key is invalid or revoked. Replace it in the sidebar.');
   if (status === 402 || status === 403) throw new Error('This dataset is not enabled for the account. Review OilPriceAPI pricing or use an entitled key.');
+  if (status === 408) throw new Error('The OilPriceAPI request timed out. Retry in a moment.');
   if (status === 429) throw new Error('The OilPriceAPI rate or quota limit was reached. Retry later or review the account limit.');
   if (status < 200 || status >= 300) throw new Error(`OilPriceAPI returned HTTP ${status}. Retry later.`);
   let payload;
@@ -158,14 +209,19 @@ function priceRecords_(payload) {
   else if (data && Array.isArray(data.prices)) records = data.prices;
   else if (data && data.prices && typeof data.prices === 'object') records = Object.values(data.prices);
   else if (data && typeof data === 'object' && ('price' in data || 'code' in data)) records = [data];
-  const normalized = records.map((record) => ({
-    code: String(record.code || '').toUpperCase(),
-    price: Number(record.price),
-    currency: String(record.currency || ''),
-    unit: String(record.unit || ''),
-    source: String(record.source || ''),
-    timestamp: String(record.created_at || record.as_of || record.timestamp || '')
-  }));
+  const normalized = records.map((record) => {
+    const rawPrice = record && record.price;
+    return {
+      code: String(record && record.code || '').toUpperCase(),
+      price: rawPrice === null || rawPrice === undefined || rawPrice === ''
+        ? NaN
+        : Number(rawPrice),
+      currency: String(record && record.currency || ''),
+      unit: String(record && record.unit || ''),
+      source: String(record && record.source || ''),
+      timestamp: String(record && (record.created_at || record.as_of || record.timestamp) || '')
+    };
+  });
   if (!normalized.length || normalized.some((record) => !record.code || !Number.isFinite(record.price))) {
     throw new Error('OilPriceAPI response is missing a finite market price.');
   }
@@ -199,7 +255,12 @@ function testConnection() {
   const probe = OPA_PRODUCT.allowedCodes.length
     ? latestPrices_([OPA_PRODUCT.allowedCodes[0]])[0]
     : productConnectionProbe_();
-  return { success: true, code: probe.code || probe.contract || 'curve', timestamp: probe.timestamp || '' };
+  return {
+    success: true,
+    code: probe.code || probe.contract || 'curve',
+    timestamp: probe.timestamp || '',
+    message: 'Connection and response schema verified.'
+  };
 }
 
 function activateProduct_() {

@@ -1,12 +1,12 @@
 # Google Workspace Marketplace Listing
 
-Status: the Marketplace draft was resubmitted July 29, 2026 and remains in
-Google review. That locked draft references Apps Script version 9. The reviewed
-1.2.1 runtime is published separately as immutable Apps Script version 10 and
-is ready to replace version 9 when Google makes App Configuration editable.
-OAuth branding and data-access verification have not yet been submitted.
-Do not claim Marketplace availability until Google approves and publishes the
-listing.
+Status: the Marketplace draft was resubmitted July 29, 2026 and Google then
+rejected/paused review pending OAuth approval. The submitted Marketplace
+configuration references Apps Script version 9. The reviewed 1.2.2 runtime is
+published separately as immutable Apps Script version 11 and must replace
+version 9 after OAuth approval. OAuth branding is verified and Data Access
+verification was submitted July 30. Do not resubmit Marketplace or claim
+availability until Google approves OAuth and publishes the listing.
 
 ## App details
 
@@ -77,35 +77,34 @@ identity defaults for product behavior and does not request Drive-wide access.
 
 - Google Cloud project: `oilpriceapi-sheets-addon` (`991152473434`)
 - Marketplace draft Apps Script version: `9`
-- Latest reviewed immutable Apps Script version: `10`
-- Runtime release represented by version 10: `1.2.1`
+- Latest reviewed immutable Apps Script version: `11`
+- Runtime release represented by version 11: `1.2.2`
 - Integration: Google Sheets Editor add-on
 - Install modes: individual and administrator
 - Regions: all regions
-- Review state: **In review — resubmitted July 29, 2026**
+- Review state: **Rejected/on hold pending OAuth approval**
 - Rejection email received: **July 27, 2026**
-- Google Cloud receipt: **“The draft is in review and can't be edited.”**
+- Marketplace instruction: **Do not resubmit until OAuth verification is
+  approved.**
 - Verification-page production deployment:
   `https://github.com/OilpriceAPI/website-clean/actions/runs/30434284989`
-- OAuth submission state: **not submitted**
+- OAuth branding state: **verified and shown to users**
+- OAuth submission state: **submitted July 30, 2026 — under review**
+- OAuth reviewer video: `https://youtu.be/FakNSmBddhE`
 - Canonical remaining-work issue:
   `https://github.com/OilpriceAPI/google-sheets-addin/issues/20`
 
-The OAuth consent screen is **In production**. The manifest and prepared
-submission use the three functional scopes above; the locked Marketplace draft
-uses the same scopes. Google's default `userinfo.email` and
-`userinfo.profile` scopes remain in place. The public homepage, privacy policy,
-and terms were corrected and deployed from website PR 1461. Cache-busted
-production checks returned HTTP 200 from the canonical domain and found the
-expected disclosure text on all three pages.
+The OAuth consent screen is **In production**. The manifest, submitted OAuth
+configuration, and Marketplace configuration use the three functional scopes
+above; Google's default `userinfo.email` and `userinfo.profile` scopes remain
+in place. The public homepage, privacy policy, and terms were corrected and
+deployed from website PR 1461.
 
-Google Auth Platform still reports branding and data access as unverified.
-Before submission, an owner/editor of Cloud project `991152473434` must confirm
-Search Console ownership for `oilpriceapi.com`, record the required continuous
-OAuth demonstration, enter version 10 when Marketplace configuration becomes
-editable, submit branding and data-access verification, and preserve the
-resulting receipt. Track those actions only in issue 20 rather than opening
-parallel submission issues.
+Google Trust and Safety confirmed receipt of the OAuth form on July 30. Keep
+the reviewer video and reviewer key active and leave branding, URLs, and scopes
+unchanged during review. After OAuth approval, update Marketplace from Apps
+Script version 9 to version 11, resubmit once, and preserve the new receipt in
+issue 20.
 
 ## Graphic assets
 

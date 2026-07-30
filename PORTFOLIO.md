@@ -29,6 +29,8 @@ Every release package must pass `npm run validate`.
   Editor add-on smoke test and its OAuth configuration is In production.
 - The five listings must not reuse screenshots or detailed descriptions.
   Shared infrastructure is acceptable; duplicate user experiences are not.
+- Follow the installed-draft, OAuth, reviewer-fixture, and evidence sequence in
+  `GOOGLE_MARKETPLACE_PLAYBOOK.md` for every candidate.
 
 ## Measurement contract
 
@@ -44,6 +46,9 @@ views**, segmented by product.
    `utm_medium=addon`, and a unique `utm_campaign`.
 4. Signup and paid conversion are joined to that campaign in the existing
    first-party attribution pipeline.
+5. Public tutorial links use the YouTube UTM contract in
+   `YOUTUBE_PROMOTION.md`, allowing YouTube sessions, signups, and first
+   activations to be compared with Marketplace acquisition.
 
 The add-ons do not send spreadsheet contents, formulas, cell values, Google
 account identifiers, or API keys for analytics.
@@ -73,3 +78,7 @@ Run clasp from the selected product directory so its `.claspignore` exposes only
 The first two have the clearest non-overlapping search intent and quickest
 time-to-value. Start their test deployments first, measure activation, then
 promote the strongest funnel before submitting the next Marketplace listing.
+
+Do not submit all five simultaneously. Complete the original add-on's OAuth
+review, then take Crack Spread Lab through the full installed-draft smoke and
+evidence packet before cloning the operational sequence for the next product.

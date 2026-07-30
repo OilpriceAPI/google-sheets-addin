@@ -4,19 +4,17 @@ This packet is for the production Google Cloud project
 `oilpriceapi-sheets-addon` (`991152473434`) and the original
 `OilPriceAPI for Google Sheets™` add-on.
 
-## Status as of July 29, 2026
+## Status as of July 30, 2026
 
 Completed release evidence:
 
 - Add-on PR 19 merged as
   `799f49f46059340ed332431f5c7ac87f5c91a695`.
-- All 49 runtime, recovery, disclosure, deployment-package, asset, portfolio,
-  and secret-scan checks passed.
+- All 54 runtime, recovery, disclosure, deployment-package, asset, portfolio,
+  and secret-scan checks passed for the current release.
 - The exact merged runtime was pushed to the production Apps Script project.
-- Immutable Apps Script version 10 was created with description
-  `OilPriceAPI for Google Sheets 1.2.1 OAuth verification`.
-- A fresh clone of version 10 matched the four-file reviewed release package
-  exactly.
+- Immutable Apps Script version 11 was created for runtime `1.2.2`, merge
+  `3747fef2d09474c5b610bfa7154c7134a16e6a9f`.
 - Website PR 1461 merged as
   `c3acb510680992538315781fb0ce3dcec335bf20`.
 - Production deployment
@@ -32,26 +30,29 @@ Completed release evidence:
 
 Current Google state:
 
-- The Marketplace version 9 draft is in review and cannot currently be edited.
-- Apps Script version 10 is prepared but is not yet selected in the locked
-  Marketplace App Configuration.
+- Google rejected/paused the Marketplace version 9 submission pending OAuth
+  approval and instructed the publisher not to resubmit Marketplace yet.
+- Apps Script version 11 is the prepared release and must replace version 9 in
+  Marketplace App Configuration after OAuth approval.
 - OAuth publishing status is **In production**.
-- OAuth branding is **not verified**.
-- OAuth data access is **not verified**.
-- OAuth verification has **not been submitted**.
-- No public OAuth demonstration URL or Google submission receipt exists yet.
+- OAuth branding is **verified and shown to users**.
+- OAuth data access was **submitted July 30, 2026 and is under review**.
+- Google reports that Homepage requirements are under review.
+- Reviewer video: `https://youtu.be/FakNSmBddhE`.
+- Google confirmed that Trust and Safety received the form, expects the first
+  email within 3–5 days, and says full review can take up to 4–6 weeks.
+- Submission receipt:
+  `https://github.com/OilpriceAPI/google-sheets-addin/issues/20#issuecomment-5131610169`.
 
 Remaining owner-session work:
 
-1. Confirm that a Cloud project owner/editor is a verified Search Console owner
-   for `oilpriceapi.com`.
-2. Record and publish the continuous end-to-end OAuth demonstration below.
-3. Update Marketplace App Configuration to Apps Script version 10 when Google
-   makes the reviewed draft editable.
-4. Submit OAuth branding and data-access verification with the exact scopes,
-   justifications, and public video URL.
-5. Capture the confirmation text, date, case/reference ID if present, and
-   redacted screenshots in issue 20:
+1. Monitor the project contact email and answer Trust and Safety in the same
+   case.
+2. Keep the reviewer video, reviewer key, branding, URLs, and scope list stable
+   during review.
+3. After OAuth approval, update Marketplace App Configuration from version 9
+   to version 11 and resubmit once.
+4. Preserve OAuth approval and Marketplace resubmission receipts in issue 20:
    `https://github.com/OilpriceAPI/google-sheets-addin/issues/20`.
 
 ## Branding values
@@ -117,8 +118,14 @@ and a non-customer test spreadsheet and OilPriceAPI key.
 11. Choose Delete API Key and show that the stored-key and diagnostic states
     are cleared.
 
-The recording must not expose an API key, Google account identifier, customer
-data, browser password manager, clipboard contents, or unrelated tabs.
+The recording must not expose an API key, customer data, browser password
+manager, clipboard contents, or unrelated tabs. Use a dedicated demo Google
+account because its identifier can appear as part of the required consent
+screen, and keep that reviewer copy Unlisted.
+
+The completed reviewer video is `https://youtu.be/FakNSmBddhE`. Keep it
+Unlisted. Create a different sanitized public acquisition video using
+`YOUTUBE_PROMOTION.md`.
 
 ## Submission order
 
@@ -127,14 +134,13 @@ data, browser password manager, clipboard contents, or unrelated tabs.
    another domain.
 3. Confirm Search Console ownership for `oilpriceapi.com`.
 4. Push and smoke the exact reviewed Apps Script source.
-5. Create a new immutable Apps Script version and enter that version in the
-   Marketplace SDK.
+5. Create a new immutable Apps Script version.
 6. Record and upload the demo video with link visibility enabled for the
    Google review team.
-7. In Google Auth Platform, verify branding first, then submit Data Access
-   verification with the scope justifications and demo link.
-8. Keep the Workspace Marketplace listing in review only after the OAuth
-   verification request is accepted for review.
+7. In Google Auth Platform, verify and publish branding first, then submit Data
+   Access verification with the scope justifications and demo link.
+8. When Google requires OAuth approval first, wait for it before entering the
+   new Apps Script version and resubmitting Marketplace.
 
 Do not claim that the add-on is publicly installable until Google approves and
 publishes the Marketplace listing.

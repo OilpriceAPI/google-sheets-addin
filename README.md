@@ -5,10 +5,11 @@ Sheets™.
 
 > Google Workspace Marketplace publication is pending. The public listing was
 > submitted on July 26, 2026, rejected on July 27 pending trademark attribution
-> and OAuth verification remediation, and resubmitted on July 29 after the
-> listing, homepage, scopes, and Apps Script version were reconciled. Google
-> Cloud currently reports that the draft is in review. Do not claim Marketplace
-> availability until Google approves and publishes the listing.
+> and OAuth verification remediation, and resubmitted on July 29. Google then
+> placed the Marketplace review on hold pending OAuth approval. OAuth branding
+> was verified and Data Access verification was submitted on July 30. Do not
+> resubmit Marketplace or claim availability until Google approves OAuth and
+> publishes the listing.
 
 Dataset access, history, freshness, and limits depend on the API key, source,
 and account entitlement. Review the
@@ -128,6 +129,11 @@ that version in the Marketplace SDK.
 
 Prepared listing copy, scope justifications, required screenshot shots, and
 generated assets are in [MARKETPLACE_LISTING.md](MARKETPLACE_LISTING.md).
+
+The reusable launch and troubleshooting lessons are in
+[GOOGLE_MARKETPLACE_PLAYBOOK.md](GOOGLE_MARKETPLACE_PLAYBOOK.md). The separate
+public-video acquisition experiment is in
+[YOUTUBE_PROMOTION.md](YOUTUBE_PROMOTION.md).
 
 ## Canonical links
 

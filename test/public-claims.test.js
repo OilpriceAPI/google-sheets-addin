@@ -13,6 +13,8 @@ const PUBLIC_FILES = [
   "FetchDialog.html",
   "MARKETPLACE_LISTING.md",
   "OAUTH_VERIFICATION.md",
+  "GOOGLE_MARKETPLACE_PLAYBOOK.md",
+  "YOUTUBE_PROMOTION.md",
   "docs/index.html",
   "package.json",
   "test/README.md",
@@ -55,11 +57,21 @@ test("operator records preserve the exact release and Google submission state", 
   );
   const records = `${deployment}\n${listing}\n${oauth}`;
 
-  assert.match(deployment, /Runtime version: `1\.2\.1`/);
-  assert.match(deployment, /Current immutable Apps Script version: `10`/);
+  assert.match(deployment, /Runtime version: `1\.2\.2`/);
+  assert.match(deployment, /Current immutable Apps Script version: `11`/);
   assert.match(listing, /Marketplace draft Apps Script version: `9`/);
-  assert.match(listing, /OAuth submission state: \*\*not submitted\*\*/);
-  assert.match(oauth, /OAuth verification has \*\*not been submitted\*\*/);
+  assert.match(
+    listing,
+    /OAuth submission state: \*\*submitted July 30, 2026 — under review\*\*/,
+  );
+  assert.match(
+    oauth,
+    /OAuth data access was \*\*submitted July 30, 2026 and is under review\*\*/,
+  );
+  assert.match(
+    records,
+    /https:\/\/youtu\.be\/FakNSmBddhE/,
+  );
   assert.match(
     records,
     /https:\/\/github\.com\/OilpriceAPI\/google-sheets-addin\/issues\/20/,

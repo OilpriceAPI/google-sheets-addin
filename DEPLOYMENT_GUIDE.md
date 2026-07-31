@@ -6,14 +6,22 @@ test installation, screenshots, and submission require the publisher account.
 
 ## Current release gate
 
-- Runtime version: `1.2.1`
+- Runtime version: `1.2.2`
 - Production Apps Script ID:
   `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`
-- Current immutable Apps Script version: `10`
+- Current immutable Apps Script version: `11` (runtime `1.2.2`, cut
+  2026-07-29 18:01 EDT / 22:01 UTC, immediately after PR #22 merged).
+  Verified 2026-07-31 in Apps Script Project History; version 11's `Code.gs`
+  reads `ADDON_VERSION = '1.2.2'`.
 - GitHub production release workflow:
   `https://github.com/OilpriceAPI/google-sheets-addin/actions/workflows/apps-script-release.yml`
-- Marketplace status: version 9 draft resubmitted July 29, 2026 and locked in
-  Google review; update it to version 10 when App Configuration is editable
+  Note: versions 9-11 were cut locally with `npm run deploy:version`, not by
+  this workflow, whose only run to date is 2026-07-24.
+- Marketplace status: **version 9 draft submitted for review**. Version 9 was
+  cut 2026-07-28 16:53 EDT and therefore predates BOTH PR #19 (OAuth
+  verification prep) and PR #22 (custom-function credential fix). **Version 11
+  is the release candidate — repin App Configuration from 9 to 11 before
+  publishing.** Nothing has ever been published; there is no live listing.
 - Runtime push/version and local deployment checks: complete
 - Marketplace review receipt and a real 1280x800 screenshot: complete
 - Public homepage, privacy policy, and terms deployment: complete
@@ -184,7 +192,7 @@ screenshots until they have been reviewed for secrets and customer data.
 After the smoke passes against the exact pushed source:
 
 ```bash
-npm run deploy:version -- "OilPriceAPI for Google Sheets 1.2.1"
+npm run deploy:version -- "OilPriceAPI for Google Sheets 1.2.2"
 npm run deploy:list
 ```
 

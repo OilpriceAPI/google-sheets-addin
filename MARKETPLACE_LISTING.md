@@ -1,9 +1,16 @@
 # Google Workspace Marketplace Listing
 
-Status: the Marketplace draft was resubmitted July 29, 2026 and remains in
-Google review. That locked draft references Apps Script version 9. The reviewed
-1.2.1 runtime is published separately as immutable Apps Script version 10 and
-is ready to replace version 9 when Google makes App Configuration editable.
+Status: the Marketplace Store Listing draft was resubmitted July 29, 2026 and
+remains in Google review. That draft references Apps Script version 9, which
+predates both PR #19 (OAuth verification prep) and PR #22 (custom-function
+credential fix).
+
+**Version 11 (runtime `1.2.2`) is the release candidate** and should replace
+version 9 in App Configuration before publishing. App Configuration is
+editable during review — only the Store Listing tab locks (verified
+2026-07-31; see `OAUTH_VERIFICATION.md`), so this repin does not have to wait
+for Google.
+
 OAuth branding and data-access verification have not yet been submitted.
 Do not claim Marketplace availability until Google approves and publishes the
 listing.
@@ -63,11 +70,11 @@ Detailed description:
 
 The Apps Script manifest declares these three functional scopes:
 
-| Scope | Justification |
-| --- | --- |
+| Scope                                                      | Justification                                                                                                                       |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `https://www.googleapis.com/auth/spreadsheets.currentonly` | Read and write only the spreadsheet where the user runs the add-on, including inserting formulas and writing requested data tables. |
-| `https://www.googleapis.com/auth/script.external_request` | Send authenticated HTTPS GET requests to `api.oilpriceapi.com` for data explicitly requested by the user. |
-| `https://www.googleapis.com/auth/script.container.ui` | Display the add-on menu, API-key sidebar, help alerts, and data-fetch dialog inside the spreadsheet where the user runs the add-on. |
+| `https://www.googleapis.com/auth/script.external_request`  | Send authenticated HTTPS GET requests to `api.oilpriceapi.com` for data explicitly requested by the user.                           |
+| `https://www.googleapis.com/auth/script.container.ui`      | Display the add-on menu, API-key sidebar, help alerts, and data-fetch dialog inside the spreadsheet where the user runs the add-on. |
 
 The submitted OAuth/Marketplace configuration also displays Google's mandatory
 `userinfo.email` and `userinfo.profile` defaults. The add-on does not use those
@@ -76,9 +83,10 @@ identity defaults for product behavior and does not request Drive-wide access.
 ## Submission receipt
 
 - Google Cloud project: `oilpriceapi-sheets-addon` (`991152473434`)
-- Marketplace draft Apps Script version: `9`
-- Latest reviewed immutable Apps Script version: `10`
-- Runtime release represented by version 10: `1.2.1`
+- Marketplace draft Apps Script version: `9` (stale - repin to `11`)
+- Latest immutable Apps Script version: `11`
+- Runtime release represented by version 11: `1.2.2`
+- Superseded: version 10 (`1.2.1`), cut before the PR #22 credential fix
 - Integration: Google Sheets Editor add-on
 - Install modes: individual and administrator
 - Regions: all regions
@@ -102,8 +110,9 @@ expected disclosure text on all three pages.
 Google Auth Platform still reports branding and data access as unverified.
 Before submission, an owner/editor of Cloud project `991152473434` must confirm
 Search Console ownership for `oilpriceapi.com`, record the required continuous
-OAuth demonstration, enter version 10 when Marketplace configuration becomes
-editable, submit branding and data-access verification, and preserve the
+OAuth demonstration, enter version 11 in App Configuration (already editable -
+it does not lock during review), submit branding and data-access
+verification, and preserve the
 resulting receipt. Track those actions only in issue 20 rather than opening
 parallel submission issues.
 

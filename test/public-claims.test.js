@@ -55,9 +55,13 @@ test("operator records preserve the exact release and Google submission state", 
   );
   const records = `${deployment}\n${listing}\n${oauth}`;
 
-  assert.match(deployment, /Runtime version: `1\.2\.1`/);
-  assert.match(deployment, /Current immutable Apps Script version: `10`/);
+  assert.match(deployment, /Runtime version: `1\.2\.2`/);
+  assert.match(deployment, /Current immutable Apps Script version: `11`/);
   assert.match(listing, /Marketplace draft Apps Script version: `9`/);
+  // The draft is pinned to 9 while the release candidate is 11; the docs must
+  // say so explicitly rather than leaving the gap implicit (#20).
+  assert.match(listing, /Latest immutable Apps Script version: `11`/);
+  assert.match(listing, /repin to `11`/);
   assert.match(listing, /OAuth submission state: \*\*not submitted\*\*/);
   assert.match(oauth, /OAuth verification has \*\*not been submitted\*\*/);
   assert.match(
@@ -67,6 +71,13 @@ test("operator records preserve the exact release and Google submission state", 
   assert.doesNotMatch(
     records,
     /Current immutable Apps Script version: `9`/,
+  );
+  // Guard the correction made 2026-07-31: App Configuration is editable while
+  // the Store Listing is in review. The old "config is locked" claim nearly
+  // drove an unnecessary cancel-and-recut of the submission.
+  assert.doesNotMatch(
+    records,
+    /Marketplace App Configuration to Apps Script version 10/,
   );
 });
 

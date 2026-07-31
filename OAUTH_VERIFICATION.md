@@ -17,6 +17,11 @@ Completed release evidence:
   `OilPriceAPI for Google Sheets 1.2.1 OAuth verification`.
 - A fresh clone of version 10 matched the four-file reviewed release package
   exactly.
+- **Superseded by version 11.** PR #22 (custom-function credential fix) merged
+  2026-07-29 22:01 UTC, after version 10 was cut, and changed `Code.gs` and
+  `Sidebar.html`. Immutable version 11 was cut the same minute (18:01 EDT) and
+  carries runtime `1.2.2`; its `Code.gs` reads `ADDON_VERSION = '1.2.2'`
+  (verified 2026-07-31). Version 11 is the release candidate.
 - Website PR 1461 merged as
   `c3acb510680992538315781fb0ce3dcec335bf20`.
 - Production deployment
@@ -32,9 +37,22 @@ Completed release evidence:
 
 Current Google state:
 
-- The Marketplace version 9 draft is in review and cannot currently be edited.
-- Apps Script version 10 is prepared but is not yet selected in the locked
-  Marketplace App Configuration.
+- The Marketplace **Store Listing** draft is in review. That tab reports
+  "The draft is in review and can't be edited" and exposes a "Cancel review"
+  control.
+- The Marketplace **App Configuration** tab is _editable_ during that review.
+  Verified 2026-07-31 by DOM inspection of the Cloud console: every input
+  reports `disabled: false`, `readOnly: false`, with no `aria-disabled`. The
+  Version field is a free-text `<input type="text">`, not a dropdown, and
+  currently holds `9`. "Save Draft" is greyed only for want of unsaved
+  changes.
+  **Correction:** earlier revisions of this document asserted the App
+  Configuration was locked during review. That is wrong, and it nearly drove
+  an unnecessary cancel-and-recut. The accurate rule is: **Store Listing locks
+  during review; App Configuration does not.**
+- Apps Script **version 11** (runtime `1.2.2`) is the current release
+  candidate and is not yet selected in App Configuration, which still points
+  at version 9.
 - OAuth publishing status is **In production**.
 - OAuth branding is **not verified**.
 - OAuth data access is **not verified**.
@@ -46,8 +64,9 @@ Remaining owner-session work:
 1. Confirm that a Cloud project owner/editor is a verified Search Console owner
    for `oilpriceapi.com`.
 2. Record and publish the continuous end-to-end OAuth demonstration below.
-3. Update Marketplace App Configuration to Apps Script version 10 when Google
-   makes the reviewed draft editable.
+3. Update Marketplace App Configuration to Apps Script version **11**. This
+   does not have to wait for Google - App Configuration is editable while the
+   Store Listing is in review.
 4. Submit OAuth branding and data-access verification with the exact scopes,
    justifications, and public video URL.
 5. Capture the confirmation text, date, case/reference ID if present, and
@@ -83,11 +102,11 @@ property in Google Search Console.
 The Apps Script manifest, OAuth Data Access page, and Workspace Marketplace SDK
 must contain the same three functional scopes:
 
-| Scope | Reviewer justification |
-| --- | --- |
-| `https://www.googleapis.com/auth/spreadsheets.currentonly` | The add-on reads only user-selected inputs required for an invoked feature and writes requested formulas, market-data tables, formatting, and conversion outputs in the spreadsheet where the add-on is open. It does not request broad Google Drive access. |
-| `https://www.googleapis.com/auth/script.external_request` | The add-on sends authenticated HTTPS GET requests to `api.oilpriceapi.com` for market data explicitly requested by the user. Requests contain the user's OilPriceAPI key and reviewed market identifiers or filters; general spreadsheet contents are not transferred. |
-| `https://www.googleapis.com/auth/script.container.ui` | The add-on displays its menu, API-key sidebar, price-selection dialog, informational alerts, diagnostics, and recovery actions inside the current spreadsheet. |
+| Scope                                                      | Reviewer justification                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `https://www.googleapis.com/auth/spreadsheets.currentonly` | The add-on reads only user-selected inputs required for an invoked feature and writes requested formulas, market-data tables, formatting, and conversion outputs in the spreadsheet where the add-on is open. It does not request broad Google Drive access.           |
+| `https://www.googleapis.com/auth/script.external_request`  | The add-on sends authenticated HTTPS GET requests to `api.oilpriceapi.com` for market data explicitly requested by the user. Requests contain the user's OilPriceAPI key and reviewed market identifiers or filters; general spreadsheet contents are not transferred. |
+| `https://www.googleapis.com/auth/script.container.ui`      | The add-on displays its menu, API-key sidebar, price-selection dialog, informational alerts, diagnostics, and recovery actions inside the current spreadsheet.                                                                                                         |
 
 Google may display default `userinfo.email` and `userinfo.profile` scopes. The
 add-on does not use those identity scopes for product behavior and does not

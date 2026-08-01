@@ -4,7 +4,10 @@ This packet is for the production Google Cloud project
 `oilpriceapi-sheets-addon` (`991152473434`) and the original
 `OilPriceAPI for Google Sheets™` add-on.
 
-## Status as of July 29, 2026
+## Status as of July 31, 2026
+
+Release evidence below is from July 29, 2026. The "Current Google state"
+section was re-verified against the live Cloud console on July 31, 2026.
 
 Completed release evidence:
 

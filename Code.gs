@@ -346,7 +346,15 @@ function requestJson_(path, apiKey) {
       method: 'get',
       headers: {
         'Authorization': `Token ${apiKey}`,
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        // Apps Script locks User-Agent, so the server's client classifier is fed
+        // via X-API-Client instead (MinimalAnalyticsService.explicit_client_marker,
+        // which already maps oilpriceapi-google-sheets -> client_type
+        // 'sdk-google-sheets'). Without this, every call from this add-on lands as
+        // client_type 'unknown' and the add-on is invisible in adoption reporting.
+        // 285 users were sitting in 'unknown' when this was found. (#6167)
+        'X-API-Client': 'oilpriceapi-google-sheets',
+        'X-Client-Version': ADDON_VERSION
       },
       muteHttpExceptions: true
     });

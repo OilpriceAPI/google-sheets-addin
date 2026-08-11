@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
+const { parse } = require("yaml");
 
 const ROOT = path.join(__dirname, "..");
 const PUBLIC_FILES = [
@@ -131,13 +132,45 @@ test("legacy credential migration requires an explicit spreadsheet reconfigure",
   assert.match(readme, /unscoped keys[\s\S]{0,260}save the key again/i);
 });
 
-test("validation and production release workflows block on dependency audit", () => {
-  for (const workflow of ["validate.yml", "apps-script-release.yml"]) {
-    const contents = fs.readFileSync(
-      path.join(ROOT, ".github", "workflows", workflow),
-      "utf8",
+test("hosted workflows use hardened Node 24 release gates", () => {
+  for (const workflow of [
+    "validate.yml",
+    "github-pages.yml",
+    "apps-script-release.yml",
+  ]) {
+    const document = parse(
+      fs.readFileSync(
+        path.join(ROOT, ".github", "workflows", workflow),
+        "utf8",
+      ),
     );
-    assert.match(contents, /npm audit --audit-level=moderate/);
+    const steps = Object.values(document.jobs).flatMap((job) => job.steps);
+    const checkouts = steps.filter(
+      (step) => step.uses === "actions/checkout@v6",
+    );
+    const setupNode = steps.filter(
+      (step) => step.uses === "actions/setup-node@v6",
+    );
+
+    assert.equal(document.permissions.contents, "read");
+    assert.ok(checkouts.length > 0);
+    for (const checkout of checkouts) {
+      assert.equal(checkout.with?.["persist-credentials"], false);
+    }
+    assert.ok(setupNode.length > 0);
+    for (const setup of setupNode) {
+      assert.equal(setup.with?.["node-version"], "24");
+    }
+    assert.ok(
+      steps.some((step) => step.run === "npm audit --audit-level=moderate"),
+    );
+
+    if (workflow === "github-pages.yml") {
+      const actionUses = steps.map((step) => step.uses);
+      assert.ok(actionUses.includes("actions/configure-pages@v6"));
+      assert.ok(actionUses.includes("actions/upload-pages-artifact@v5"));
+      assert.ok(actionUses.includes("actions/deploy-pages@v5"));
+    }
   }
 
   const results = fs.readFileSync(path.join(ROOT, "TEST_RESULTS.md"), "utf8");

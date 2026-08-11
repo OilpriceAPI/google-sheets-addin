@@ -145,6 +145,10 @@ test("hosted workflows use hardened Node 24 release gates", () => {
       ),
     );
     const steps = Object.values(document.jobs).flatMap((job) => job.steps);
+    const gateJobName = workflow === "apps-script-release.yml"
+      ? "release"
+      : "validate";
+    const gateSteps = document.jobs[gateJobName].steps;
     const checkouts = steps.filter((step) =>
       step.uses?.startsWith("actions/checkout@"),
     );
@@ -163,12 +167,18 @@ test("hosted workflows use hardened Node 24 release gates", () => {
       assert.equal(setup.uses, "actions/setup-node@v6");
       assert.equal(setup.with?.["node-version"], "24");
     }
-    assert.ok(
-      steps.some((step) => step.run === "npm audit --audit-level=moderate"),
+    const auditIndex = gateSteps.findIndex(
+      (step) => step.run === "npm audit --audit-level=moderate",
     );
+    const validationIndex = gateSteps.findIndex(
+      (step) => step.run === "npm run validate",
+    );
+    assert.ok(auditIndex >= 0);
+    assert.ok(validationIndex > auditIndex);
 
     if (workflow === "github-pages.yml") {
-      const pageActions = steps
+      assert.equal(document.jobs.deploy.needs, "validate");
+      const pageActions = document.jobs.deploy.steps
         .map((step) => step.uses)
         .filter((uses) =>
           /actions\/(?:configure-pages|upload-pages-artifact|deploy-pages)@/.test(

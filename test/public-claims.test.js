@@ -22,10 +22,14 @@ test("public surfaces identify Marketplace status and canonical facts", () => {
   const text = PUBLIC_FILES.map((file) =>
     fs.readFileSync(path.join(ROOT, file), "utf8"),
   ).join("\n");
-  assert.match(text, /Google Workspace Marketplace publication (?:is )?pending/i);
-  assert.match(text, /submitted (?:on )?July 26, 2026/i);
-  assert.match(text, /rejected (?:on )?July 27/i);
-  assert.match(text, /trademark attribution and OAuth verification remediation/i);
+  const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
+  const runtime = fs.readFileSync(path.join(ROOT, "Code.gs"), "utf8");
+  assert.match(readme, /publicly available in Google Workspace Marketplace/i);
+  assert.match(
+    text,
+    /https:\/\/workspace\.google\.com\/marketplace\/app\/oilpriceapi_for_google_sheets\/991152473434/,
+  );
+  assert.doesNotMatch(runtime, /Marketplace publication is pending/i);
   assert.doesNotMatch(text, /Marketplace submission steps remain/i);
   assert.match(text, /https:\/\/api\.oilpriceapi\.com\/product-facts\.json/);
 });
@@ -55,26 +59,23 @@ test("operator records preserve the exact release and Google submission state", 
   );
   const records = `${deployment}\n${listing}\n${oauth}`;
 
-  assert.match(deployment, /Runtime version: `1\.2\.2`/);
+  assert.match(deployment, /Public runtime version: `1\.2\.2`/);
   assert.match(deployment, /Current immutable Apps Script version: `11`/);
-  assert.match(listing, /Marketplace draft Apps Script version: `9`/);
-  // The draft is pinned to 9 while the release candidate is 11; the docs must
-  // say so explicitly rather than leaving the gap implicit (#20).
-  assert.match(listing, /Latest immutable Apps Script version: `11`/);
-  assert.match(listing, /repin to `11`/);
-  assert.match(listing, /OAuth submission state: \*\*not submitted\*\*/);
-  assert.match(oauth, /OAuth verification has \*\*not been submitted\*\*/);
+  assert.match(listing, /Public Marketplace Apps Script version: `11`/);
+  assert.match(records, /publicly available/i);
   assert.match(
     records,
-    /https:\/\/github\.com\/OilpriceAPI\/google-sheets-addin\/issues\/20/,
+    /https:\/\/workspace\.google\.com\/marketplace\/app\/oilpriceapi_for_google_sheets\/991152473434/,
   );
+  assert.doesNotMatch(records, /OAuth verification has \*\*not been submitted\*\*/);
+  assert.doesNotMatch(records, /OAuth submission state: \*\*not submitted\*\*/);
+  assert.doesNotMatch(records, /awaiting Marketplace publication/i);
   assert.doesNotMatch(
     records,
     /Current immutable Apps Script version: `9`/,
   );
-  // Guard the correction made 2026-07-31: App Configuration is editable while
-  // the Store Listing is in review. The old "config is locked" claim nearly
-  // drove an unnecessary cancel-and-recut of the submission.
+  // Preserve the earlier correction: App Configuration did not lock while the
+  // Store Listing was under review.
   assert.doesNotMatch(
     records,
     /Marketplace App Configuration to Apps Script version 10/,

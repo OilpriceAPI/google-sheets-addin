@@ -1,19 +1,12 @@
 # Google Workspace Marketplace Listing
 
-Status: the Marketplace Store Listing draft was resubmitted July 29, 2026 and
-remains in Google review. That draft references Apps Script version 9, which
-predates both PR #19 (OAuth verification prep) and PR #22 (custom-function
-credential fix).
+Status: **publicly available** at
+`https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434`.
 
-**Version 11 (runtime `1.2.2`) is the release candidate** and should replace
-version 9 in App Configuration before publishing. App Configuration is
-editable during review — only the Store Listing tab locks (verified
-2026-07-31; see `OAUTH_VERIFICATION.md`), so this repin does not have to wait
-for Google.
-
-OAuth branding and data-access verification have not yet been submitted.
-Do not claim Marketplace availability until Google approves and publishes the
-listing.
+Public Marketplace Apps Script version: `11` (runtime `1.2.2`). Runtime
+`1.3.0` remains a release candidate until an immutable Apps Script version is
+cut, smoke-tested through an installed Marketplace add-on, and selected in App
+Configuration.
 
 ## App details
 
@@ -35,7 +28,7 @@ Detailed description:
 > request the latest available value, its currency and unit, source timestamp,
 > freshness state, or an allowlisted API table.
 >
-> Core formulas include OILPRICE_PRICE, OILPRICE_INFO, OILPRICE_STATUS,
+> Core formulas include OILPRICE_PRICE, OILPRICE_TABLE, OILPRICE_INFO, OILPRICE_STATUS,
 > OILPRICE_UNIT, OILPRICE_CODES, and OILPRICE_GET. Existing OILPRICE,
 > OILPRICE_HISTORY, futures, bunker-price, rig-count, and reference conversion
 > formulas remain available.
@@ -80,41 +73,38 @@ The submitted OAuth/Marketplace configuration also displays Google's mandatory
 `userinfo.email` and `userinfo.profile` defaults. The add-on does not use those
 identity defaults for product behavior and does not request Drive-wide access.
 
-## Submission receipt
+## Current publication receipt
 
 - Google Cloud project: `oilpriceapi-sheets-addon` (`991152473434`)
-- Marketplace draft Apps Script version: `9` (stale - repin to `11`)
+- Public listing:
+  `https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434`
+- Public Marketplace Apps Script version: `11`
 - Latest immutable Apps Script version: `11`
 - Runtime release represented by version 11: `1.2.2`
 - Superseded: version 10 (`1.2.1`), cut before the PR #22 credential fix
 - Integration: Google Sheets Editor add-on
 - Install modes: individual and administrator
 - Regions: all regions
-- Review state: **In review — resubmitted July 29, 2026**
+- Review state: **Published — independently verified August 10, 2026**
 - Rejection email received: **July 27, 2026**
-- Google Cloud receipt: **“The draft is in review and can't be edited.”**
+- Historical Google Cloud receipt: **“The draft is in review and can't be edited.”**
 - Verification-page production deployment:
   `https://github.com/OilpriceAPI/website-clean/actions/runs/30434284989`
-- OAuth submission state: **not submitted**
-- Canonical remaining-work issue:
-  `https://github.com/OilpriceAPI/google-sheets-addin/issues/20`
+- OAuth verification was submitted July 30, 2026 with the reviewer-accessible
+  demonstration `https://youtu.be/FakNSmBddhE`; the later public listing is the
+  customer-visible approval evidence.
 
-The OAuth consent screen is **In production**. The manifest and prepared
-submission use the three functional scopes above; the locked Marketplace draft
-uses the same scopes. Google's default `userinfo.email` and
+The OAuth consent screen is **In production**. The manifest and published
+submission use the three functional scopes above. Google's default `userinfo.email` and
 `userinfo.profile` scopes remain in place. The public homepage, privacy policy,
 and terms were corrected and deployed from website PR 1461. Cache-busted
 production checks returned HTTP 200 from the canonical domain and found the
 expected disclosure text on all three pages.
 
-Google Auth Platform still reports branding and data access as unverified.
-Before submission, an owner/editor of Cloud project `991152473434` must confirm
-Search Console ownership for `oilpriceapi.com`, record the required continuous
-OAuth demonstration, enter version 11 in App Configuration (already editable -
-it does not lock during review), submit branding and data-access
-verification, and preserve the
-resulting receipt. Track those actions only in issue 20 rather than opening
-parallel submission issues.
+Do not infer any private Cloud-console field beyond the receipts above. The
+public listing and installed-add-on smoke are the release gates for customer
+availability; future runtime revisions still require their own immutable
+version and installed formula smoke.
 
 ## Graphic assets
 

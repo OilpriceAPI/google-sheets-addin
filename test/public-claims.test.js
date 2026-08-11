@@ -145,20 +145,22 @@ test("hosted workflows use hardened Node 24 release gates", () => {
       ),
     );
     const steps = Object.values(document.jobs).flatMap((job) => job.steps);
-    const checkouts = steps.filter(
-      (step) => step.uses === "actions/checkout@v6",
+    const checkouts = steps.filter((step) =>
+      step.uses?.startsWith("actions/checkout@"),
     );
-    const setupNode = steps.filter(
-      (step) => step.uses === "actions/setup-node@v6",
+    const setupNode = steps.filter((step) =>
+      step.uses?.startsWith("actions/setup-node@"),
     );
 
     assert.equal(document.permissions.contents, "read");
     assert.ok(checkouts.length > 0);
     for (const checkout of checkouts) {
+      assert.equal(checkout.uses, "actions/checkout@v6");
       assert.equal(checkout.with?.["persist-credentials"], false);
     }
     assert.ok(setupNode.length > 0);
     for (const setup of setupNode) {
+      assert.equal(setup.uses, "actions/setup-node@v6");
       assert.equal(setup.with?.["node-version"], "24");
     }
     assert.ok(
@@ -166,10 +168,19 @@ test("hosted workflows use hardened Node 24 release gates", () => {
     );
 
     if (workflow === "github-pages.yml") {
-      const actionUses = steps.map((step) => step.uses);
-      assert.ok(actionUses.includes("actions/configure-pages@v6"));
-      assert.ok(actionUses.includes("actions/upload-pages-artifact@v5"));
-      assert.ok(actionUses.includes("actions/deploy-pages@v5"));
+      const pageActions = steps
+        .map((step) => step.uses)
+        .filter((uses) =>
+          /actions\/(?:configure-pages|upload-pages-artifact|deploy-pages)@/.test(
+            uses || "",
+          ),
+        )
+        .sort();
+      assert.deepEqual(pageActions, [
+        "actions/configure-pages@v6",
+        "actions/deploy-pages@v5",
+        "actions/upload-pages-artifact@v5",
+      ]);
     }
   }
 

@@ -27,6 +27,7 @@ function validateFiles() {
     "appsscript.json",
     "docs/index.html",
     "package.json",
+    "scripts/scan-secrets.js",
     "scripts/scan-secrets.sh",
     "scripts/configure-clasp.js",
     "scripts/generate-marketplace-assets.js",
@@ -34,6 +35,7 @@ function validateFiles() {
     "scripts/verify-marketplace-assets.js",
     "test/public-claims.test.js",
     "test/runtime.test.js",
+    "test/secret-scan.test.js",
   ];
   for (const file of required) {
     assert.equal(fs.existsSync(path.join(ROOT, file)), true, `missing ${file}`);

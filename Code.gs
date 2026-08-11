@@ -6,7 +6,7 @@
  */
 
 const API_BASE_URL = 'https://api.oilpriceapi.com/v1';
-const ADDON_VERSION = '1.3.0';
+const ADDON_VERSION = '1.3.1';
 const KEY_PROPERTY = 'OILPRICEAPI_KEY';
 const LAST_DIAGNOSTIC_PROPERTY = 'OILPRICEAPI_LAST_DIAGNOSTIC';
 const CACHE_GENERATION_PROPERTY = 'OILPRICEAPI_CACHE_GENERATION';
@@ -28,6 +28,7 @@ const CACHE_TTL_SECONDS = {
 };
 const MAX_CACHE_TTL_SECONDS = 21600;
 let cachedGeneration_ = null;
+let cachedCacheScope_ = null;
 
 // Keep generic worksheet requests aligned with the Excel add-in's reviewed
 // endpoint catalog. Add endpoints deliberately after API-shape tests exist.
@@ -193,10 +194,7 @@ function getApiKey_() {
   const spreadsheetKey = spreadsheetKeyProperty
     ? userProperties.getProperty(spreadsheetKeyProperty)
     : null;
-  if (spreadsheetKey) return spreadsheetKey;
-
-  // Migration fallback for keys saved by releases before Apps Script version 6.
-  return userProperties.getProperty(KEY_PROPERTY);
+  return spreadsheetKey || null;
 }
 
 function requireApiKey_() {
@@ -236,6 +234,7 @@ function saveApiKey(apiKey) {
   userProperties.setProperty(`${CACHE_GENERATION_PROPERTY}:${getActiveSpreadsheetId_()}`, cacheGeneration);
   userProperties.deleteProperty(KEY_PROPERTY);
   cachedGeneration_ = null;
+  cachedCacheScope_ = null;
   return {
     success: true,
     message: 'API key saved for this spreadsheet in Apps Script properties.'
@@ -257,6 +256,7 @@ function deleteApiKey() {
   userProperties.deleteProperty(KEY_PROPERTY);
   userProperties.deleteProperty(LAST_DIAGNOSTIC_PROPERTY);
   cachedGeneration_ = null;
+  cachedCacheScope_ = null;
   return {
     success: true,
     message: 'Stored spreadsheet API key and request diagnostic deleted.'
@@ -312,38 +312,107 @@ function responseHeader_(response, name) {
   return key && typeof headers[key] === 'string' ? headers[key].slice(0, 128) : '';
 }
 
-function cacheGeneration_() {
-  if (cachedGeneration_ !== null) return cachedGeneration_;
+function cacheContext_() {
+  if (cachedGeneration_ !== null && cachedCacheScope_ !== null) {
+    return { generation: cachedGeneration_, scope: cachedCacheScope_ };
+  }
   const documentProperties = getDocumentProperties_();
+  const documentKey = documentProperties
+    ? documentProperties.getProperty(KEY_PROPERTY)
+    : null;
   const documentGeneration = documentProperties
     ? documentProperties.getProperty(CACHE_GENERATION_PROPERTY)
     : null;
-  if (documentGeneration) {
+  if (documentKey && documentGeneration && documentGeneration !== 'legacy') {
     cachedGeneration_ = documentGeneration;
-    return cachedGeneration_;
+    cachedCacheScope_ = 'document';
+    return { generation: cachedGeneration_, scope: cachedCacheScope_ };
   }
 
   const spreadsheetId = getActiveSpreadsheetId_();
-  if (!spreadsheetId) {
-    cachedGeneration_ = 'legacy';
-    return cachedGeneration_;
+  let userGeneration = null;
+  if (spreadsheetId) {
+    try {
+      userGeneration = PropertiesService.getUserProperties().getProperty(
+        `${CACHE_GENERATION_PROPERTY}:${spreadsheetId}`
+      );
+    } catch (error) {
+      // Unknown credential contexts must remain isolated in the user cache.
+    }
   }
-  cachedGeneration_ = PropertiesService.getUserProperties().getProperty(
-    `${CACHE_GENERATION_PROPERTY}:${spreadsheetId}`
-  ) || 'legacy';
-  return cachedGeneration_;
+  cachedGeneration_ = userGeneration || 'legacy';
+  cachedCacheScope_ = 'user';
+  return { generation: cachedGeneration_, scope: cachedCacheScope_ };
+}
+
+function cacheGeneration_() {
+  return cacheContext_().generation;
+}
+
+function effectiveCacheScope_(requestedScope) {
+  if (requestedScope === 'user') return 'user';
+  return cacheContext_().scope;
+}
+
+function nextCacheGeneration_(previousGeneration) {
+  const previous = Number(previousGeneration);
+  return String(
+    Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)
+  );
+}
+
+function invalidateCacheGeneration_() {
+  const currentContext = cacheContext_();
+  const generation = nextCacheGeneration_(currentContext.generation);
+  let activeScopeInvalidated = false;
+  if (currentContext.scope === 'document') {
+    const documentProperties = getDocumentProperties_();
+    if (documentProperties) {
+      try {
+        documentProperties.setProperty(CACHE_GENERATION_PROPERTY, generation);
+        activeScopeInvalidated = true;
+      } catch (error) {
+        // A fallback generation cannot invalidate an active document cache.
+      }
+    }
+  }
+  const spreadsheetId = getActiveSpreadsheetId_();
+  if (spreadsheetId) {
+    try {
+      PropertiesService.getUserProperties().setProperty(
+        `${CACHE_GENERATION_PROPERTY}:${spreadsheetId}`,
+        generation
+      );
+      if (currentContext.scope === 'user') activeScopeInvalidated = true;
+    } catch (error) {
+      // A confirmed document write remains sufficient for document scope.
+    }
+  }
+  cachedGeneration_ = null;
+  cachedCacheScope_ = null;
+  if (!activeScopeInvalidated) {
+    throw makeError_(
+      'RETRY_LATER',
+      'Connection succeeded, but cached worksheet state could not be refreshed. Run Test Connection again.'
+    );
+  }
 }
 
 function stableCacheHash_(value) {
+  const text = String(value || '');
+  const digest = stableCacheDigest_(text);
+  const slug = text.replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 96);
+  return `${slug}_${digest}`;
+}
+
+function stableCacheDigest_(value) {
   let hash = 2166136261;
   const text = String(value || '');
   for (let index = 0; index < text.length; index += 1) {
     hash ^= text.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
-  const digest = (hash >>> 0).toString(36);
-  const slug = text.replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 96);
-  return `${slug}_${digest}`;
+  return (hash >>> 0).toString(36);
 }
 
 function requestBlockKeys_(path) {
@@ -686,35 +755,47 @@ function validatePriceRecord_(record, subject) {
   };
 }
 
-function cacheStore_(scope) {
+function cacheStoreContext_(scope) {
   if (typeof CacheService === 'undefined') return null;
-  if (scope === 'document' && typeof CacheService.getDocumentCache === 'function') {
+  const effectiveScope = effectiveCacheScope_(scope || 'document');
+  if (
+    effectiveScope === 'document' &&
+    typeof CacheService.getDocumentCache === 'function'
+  ) {
     try {
       const documentCache = CacheService.getDocumentCache();
-      if (documentCache) return documentCache;
+      if (documentCache) return { store: documentCache, scope: 'document' };
     } catch (error) {
       // Fall through to the per-user cache when the document cache is unavailable.
     }
   }
   try {
-    return typeof CacheService.getUserCache === 'function'
-      ? CacheService.getUserCache()
-      : null;
+    if (typeof CacheService.getUserCache !== 'function') return null;
+    const userCache = CacheService.getUserCache();
+    return userCache ? { store: userCache, scope: 'user' } : null;
   } catch (error) {
     return null;
   }
 }
 
-function namespacedCacheKey_(cacheKey) {
-  return `opa_${cacheGeneration_()}_${cacheKey}`;
+function namespacedCacheKey_(cacheKey, cacheScope) {
+  if (cacheScope === 'user') {
+    const spreadsheetId = getActiveSpreadsheetId_();
+    if (!spreadsheetId) return null;
+    const spreadsheetHash =
+      `${stableCacheDigest_(spreadsheetId)}${stableCacheDigest_(`sheet:${spreadsheetId}`)}`;
+    return `opa_u_${spreadsheetHash}_${cacheGeneration_()}_${cacheKey}`;
+  }
+  return `opa_d_${cacheGeneration_()}_${cacheKey}`;
 }
 
 function getCachedValue_(cacheKey, maxAgeSeconds, scope) {
   try {
-    const cache = cacheStore_(scope || 'document');
-    if (!cache || typeof cache.get !== 'function') return null;
-    const namespacedKey = namespacedCacheKey_(cacheKey);
-    const raw = cache.get(namespacedKey);
+    const cacheContext = cacheStoreContext_(scope || 'document');
+    if (!cacheContext || typeof cacheContext.store.get !== 'function') return null;
+    const namespacedKey = namespacedCacheKey_(cacheKey, cacheContext.scope);
+    if (!namespacedKey) return null;
+    const raw = cacheContext.store.get(namespacedKey);
     if (!raw) return null;
 
     let envelope;
@@ -722,7 +803,7 @@ function getCachedValue_(cacheKey, maxAgeSeconds, scope) {
       envelope = JSON.parse(raw);
     } catch (error) {
       try {
-        cache.remove(namespacedKey);
+        cacheContext.store.remove(namespacedKey);
       } catch (removeError) {
         // An invalid entry can expire naturally if removal is unavailable.
       }
@@ -735,7 +816,7 @@ function getCachedValue_(cacheKey, maxAgeSeconds, scope) {
       Date.now() - envelope.cachedAt > maxAgeSeconds * 1000
     ) {
       try {
-        cache.remove(namespacedKey);
+        cacheContext.store.remove(namespacedKey);
       } catch (removeError) {
         // An expired entry can expire naturally if removal is unavailable.
       }
@@ -750,8 +831,12 @@ function getCachedValue_(cacheKey, maxAgeSeconds, scope) {
 
 function putCachedValue_(cacheKey, value, ttlSeconds, scope) {
   try {
-    cacheStore_(scope || 'document').put(
-      namespacedCacheKey_(cacheKey),
+    const cacheContext = cacheStoreContext_(scope || 'document');
+    if (!cacheContext || typeof cacheContext.store.put !== 'function') return;
+    const namespacedKey = namespacedCacheKey_(cacheKey, cacheContext.scope);
+    if (!namespacedKey) return;
+    cacheContext.store.put(
+      namespacedKey,
       JSON.stringify({ cachedAt: Date.now(), value }),
       Math.min(MAX_CACHE_TTL_SECONDS, Math.max(1, Math.round(ttlSeconds)))
     );
@@ -762,9 +847,10 @@ function putCachedValue_(cacheKey, value, ttlSeconds, scope) {
 
 function removeCachedValue_(cacheKey, scope) {
   try {
-    const cache = cacheStore_(scope || 'document');
-    if (cache && typeof cache.remove === 'function') {
-      cache.remove(namespacedCacheKey_(cacheKey));
+    const cacheContext = cacheStoreContext_(scope || 'document');
+    if (cacheContext && typeof cacheContext.store.remove === 'function') {
+      const namespacedKey = namespacedCacheKey_(cacheKey, cacheContext.scope);
+      if (namespacedKey) cacheContext.store.remove(namespacedKey);
     }
   } catch (error) {
     // Request-block cleanup must not replace a valid live response.
@@ -963,6 +1049,7 @@ function testConnection() {
       { bypassBlock: true }
     );
     validatePriceRecord_(extractPriceRecords_(body, 'price')[0], 'Price record');
+    invalidateCacheGeneration_();
     return { success: true, message: 'Connection and response schema verified.' };
   } catch (error) {
     return { success: false, message: error.message };
@@ -971,20 +1058,20 @@ function testConnection() {
 
 function getUserInfo() {
   if (!getApiKey_()) {
-    return { tier: 'none', limit: null, used: null };
+    return { tier: 'none', limit: null, used: null, window: null };
   }
   try {
     const body = requestJson_('/users/me', getApiKey_());
     const data = body.data && typeof body.data === 'object' ? body.data : body;
     const tier = typeof data.tier === 'string' ? data.tier : (typeof data.plan === 'string' ? data.plan : null);
-    const limit = Number(data.request_limit);
-    const used = Number(data.requests_this_month);
-    if (!tier || !Number.isFinite(limit) || !Number.isFinite(used)) {
-      return { tier: 'unknown', limit: null, used: null };
-    }
-    return { tier, limit, used };
+    return {
+      tier: tier || 'unknown',
+      limit: null,
+      used: null,
+      window: null
+    };
   } catch (error) {
-    return { tier: 'unknown', limit: null, used: null, message: error.message };
+    return { tier: 'unknown', limit: null, used: null, window: null, message: error.message };
   }
 }
 

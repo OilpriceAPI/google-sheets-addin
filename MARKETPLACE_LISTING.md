@@ -4,7 +4,7 @@ Status: **publicly available** at
 `https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434`.
 
 Public Marketplace Apps Script version: `11` (runtime `1.2.2`). Runtime
-`1.3.0` remains a release candidate until an immutable Apps Script version is
+`1.3.1` remains a release candidate until an immutable Apps Script version is
 cut, smoke-tested through an installed Marketplace add-on, and selected in App
 Configuration.
 
@@ -79,8 +79,10 @@ identity defaults for product behavior and does not request Drive-wide access.
 - Public listing:
   `https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434`
 - Public Marketplace Apps Script version: `11`
-- Latest immutable Apps Script version: `11`
+- Latest immutable Apps Script version: `12`
 - Runtime release represented by version 11: `1.2.2`
+- Version 12 represented runtime `1.3.0`, failed the user-scoped cache-isolation
+  review, and was never published. Runtime `1.3.1` is its replacement candidate.
 - Superseded: version 10 (`1.2.1`), cut before the PR #22 credential fix
 - Integration: Google Sheets Editor add-on
 - Install modes: individual and administrator

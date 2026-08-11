@@ -60,11 +60,19 @@ test("operator records preserve the exact release and Google submission state", 
     path.join(ROOT, "OAUTH_VERIFICATION.md"),
     "utf8",
   );
+  const packageVersion = JSON.parse(
+    fs.readFileSync(path.join(ROOT, "package.json"), "utf8"),
+  ).version;
+  const runtime = fs.readFileSync(path.join(ROOT, "Code.gs"), "utf8");
   const records = `${deployment}\n${listing}\n${oauth}`;
 
+  assert.equal(packageVersion, "1.3.1");
+  assert.match(runtime, /ADDON_VERSION = '1\.3\.1'/);
   assert.match(deployment, /Public runtime version: `1\.2\.2`/);
-  assert.match(deployment, /Current immutable Apps Script version: `11`/);
+  assert.match(deployment, /Repository release candidate: `1\.3\.1`/);
+  assert.match(deployment, /Latest immutable Apps Script version: `12`/);
   assert.match(listing, /Public Marketplace Apps Script version: `11`/);
+  assert.match(records, /version 12[\s\S]{0,240}never published/i);
   assert.match(records, /publicly available/i);
   assert.match(
     records,
@@ -106,6 +114,11 @@ test("sidebar gives an in-product privacy notice and policy links", () => {
   );
   assert.match(sidebar, /Google API Services User Data Policy/i);
   assert.match(sidebar, /Limited Use requirements/i);
+});
+
+test("legacy credential migration requires an explicit spreadsheet reconfigure", () => {
+  const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
+  assert.match(readme, /unscoped keys[\s\S]{0,260}save the key again/i);
 });
 
 test("public surfaces contain no unsupported mutable claims", () => {

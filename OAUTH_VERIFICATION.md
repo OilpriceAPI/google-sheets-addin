@@ -29,7 +29,8 @@ versions 9 and 10 are superseded.
 
 Private Cloud-console fields are not inferred from public availability. The
 customer release gate is the public listing plus an installed-add-on formula
-smoke. Runtime `1.3.0` must therefore remain a release candidate until it is
+smoke. Immutable version 12 (runtime `1.3.0`) failed cache-isolation review and
+was never published. Runtime `1.3.1` must therefore remain a release candidate until it is
 merged, pushed, cut as a new immutable Apps Script version, installed through
 Marketplace, and smoke-tested before App Configuration is updated.
 

@@ -5,7 +5,7 @@ Sheets™.
 
 The add-on is [publicly available in Google Workspace Marketplace](https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434).
 The public listing currently points to immutable Apps Script version 11
-(`1.2.2`). Runtime `1.3.0` is a release candidate until its installed-add-on
+(`1.2.2`). Runtime `1.3.1` is a release candidate until its installed-add-on
 smoke and Marketplace version update are recorded.
 
 Dataset access, history, freshness, and limits depend on the API key, source,
@@ -60,6 +60,10 @@ The original `OILPRICE(code)` formula remains supported for existing sheets.
   the key without making it available to another spreadsheet. The spreadsheet
   owner should configure the key. Editors of that spreadsheet can cause add-on
   formulas to make requests with the configured key.
+- Unscoped keys saved by releases before Apps Script version 6 are deliberately
+  not read because they cannot be tied to one spreadsheet. After upgrading from
+  such a release, open each intended spreadsheet and save the key again from
+  **OilPriceAPI > Configure API Key**.
 - The sidebar receives only configured/not-configured state; it never reads the
   stored key into browser-side HTML.
 - Generic GET calls are restricted to the same reviewed endpoint catalog as
@@ -122,7 +126,7 @@ npm run clasp:login
 read -r "OPA_SCRIPT_ID?Apps Script ID: "
 npm run clasp:configure -- "$OPA_SCRIPT_ID"
 npm run deploy:push
-npm run deploy:version -- "OilPriceAPI for Google Sheets 1.3.0 customer-path recovery"
+npm run deploy:version -- "OilPriceAPI for Google Sheets 1.3.1 cache-isolation recovery"
 ```
 
 Editor add-on publication uses the Apps Script **script ID and version

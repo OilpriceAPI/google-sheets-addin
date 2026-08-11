@@ -13,6 +13,8 @@ const PUBLIC_FILES = [
   "FetchDialog.html",
   "MARKETPLACE_LISTING.md",
   "OAUTH_VERIFICATION.md",
+  "GOOGLE_MARKETPLACE_PLAYBOOK.md",
+  "YOUTUBE_PROMOTION.md",
   "docs/index.html",
   "package.json",
   "test/README.md",
@@ -142,6 +144,31 @@ test("validation and production release workflows block on dependency audit", ()
   assert.match(results, /npm audit --audit-level=moderate/);
   assert.match(results, /0 vulnerabilities/);
   assert.doesNotMatch(results, /reports moderate transitive[\s\S]{0,120}advisories/i);
+});
+
+test("YouTube attribution separates every video and evaluation checkpoint", () => {
+  const promotion = fs.readFileSync(
+    path.join(ROOT, "YOUTUBE_PROMOTION.md"),
+    "utf8",
+  );
+  assert.match(promotion, /utm_content=<video-id>_overview_demo/);
+  assert.match(promotion, /utm_content=<video-id>_signup_cta/);
+  assert.match(promotion, /Day 30[^\n]*interim/i);
+  assert.match(promotion, /Day 90[^\n]*final/i);
+  assert.doesNotMatch(promotion, /Marketplace publication is pending/i);
+  assert.match(promotion, /publicly available in Google Workspace Marketplace/i);
+});
+
+test("portfolio readiness does not claim stale immutable packages", () => {
+  const readiness = fs.readFileSync(
+    path.join(ROOT, "PORTFOLIO_SUBMISSION_READINESS.md"),
+    "utf8",
+  );
+  assert.match(readiness, /new immutable version required/i);
+  assert.doesNotMatch(
+    readiness,
+    /every recorded immutable Apps Script version[\s\S]{0,120}matched/i,
+  );
 });
 
 test("public surfaces contain no unsupported mutable claims", () => {

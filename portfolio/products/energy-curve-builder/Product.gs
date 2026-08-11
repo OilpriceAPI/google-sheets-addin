@@ -1,10 +1,16 @@
 function curveContracts_(payload) {
   const data = payload && payload.data;
-  const records = Array.isArray(data) ? data : data && Array.isArray(data.contracts) ? data.contracts : [];
+  const records = payload && Array.isArray(payload.contracts)
+    ? payload.contracts
+    : Array.isArray(data)
+      ? data
+      : data && Array.isArray(data.contracts)
+        ? data.contracts
+        : [];
   const normalized = records.map((record) => ({
-    month: String(record.month || record.contract_month || record.symbol || ''),
-    price: Number(record.price || record.settlement || record.settlement_price),
-    sourceTimestamp: String(record.created_at || record.as_of || record.timestamp || '')
+    month: String(record.contract_month || record.month || record.symbol || ''),
+    price: Number(record.settlement_price ?? record.settlement ?? record.price),
+    sourceTimestamp: String(record.trading_date || record.created_at || record.as_of || record.timestamp || '')
   }));
   if (normalized.length < 2 || normalized.some((record) => !record.month || !Number.isFinite(record.price))) {
     throw new Error('Futures curve response needs at least two dated contracts with finite prices.');
@@ -13,9 +19,11 @@ function curveContracts_(payload) {
 }
 
 function fetchCurve_(contract) {
-  const code = String(contract || '').toUpperCase();
-  if (!['CL', 'BZ'].includes(code)) throw new Error('Supported curve contracts are CL and BZ.');
-  return curveContracts_(requestJson_(`/futures/curve?contract=${encodeURIComponent(code)}`, requireApiKey_()));
+  const code = String(contract || '').trim().toLowerCase();
+  if (!['ice-wti', 'ice-brent'].includes(code)) {
+    throw new Error('Supported curve contracts are ice-wti and ice-brent.');
+  }
+  return curveContracts_(requestJson_(`/futures/${encodeURIComponent(code)}/curve`, requireApiKey_()));
 }
 
 function curveTable_(records) {
@@ -29,13 +37,13 @@ function curveTable_(records) {
 }
 
 function productConnectionProbe_() {
-  const record = fetchCurve_('CL')[0];
+  const record = fetchCurve_('ice-wti')[0];
   return { contract: record.month, timestamp: record.sourceTimestamp };
 }
 
 function buildEnergyCurveWorkbook() {
-  const wti = fetchCurve_('CL');
-  const brent = fetchCurve_('BZ');
+  const wti = fetchCurve_('ice-wti');
+  const brent = fetchCurve_('ice-brent');
 
   const wtiSheet = sheet_('WTI Curve');
   writeTitle_(wtiSheet, 'WTI Futures Curve', 'Contract prices and month-on-month calendar spreads.');
@@ -53,6 +61,10 @@ function buildEnergyCurveWorkbook() {
     ['Market', 'Front month', 'Second month', 'Second minus front', 'Signal'],
     ['WTI', wti[0].month, wti[1].month, wti[1].price - wti[0].price, wti[1].price > wti[0].price ? 'Contango' : 'Backwardation'],
     ['Brent', brent[0].month, brent[1].month, brent[1].price - brent[0].price, brent[1].price > brent[0].price ? 'Contango' : 'Backwardation']
+  ]);
+  spreads.getRange('D5:E6').setFormulas([
+    ['=\'WTI Curve\'!B6-\'WTI Curve\'!B5', '=IF(D5>0,"Contango",IF(D5<0,"Backwardation","Flat"))'],
+    ['=\'Brent Curve\'!B6-\'Brent Curve\'!B5', '=IF(D6>0,"Contango",IF(D6<0,"Backwardation","Flat"))']
   ]);
   spreads.getRange('D5:D6').setNumberFormat('$0.00');
 

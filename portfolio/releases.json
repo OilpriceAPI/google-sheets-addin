@@ -1,31 +1,55 @@
 {
-  "reviewedAt": "2026-07-29",
+  "reviewedAt": "2026-08-11",
   "products": {
     "crack-spread-lab": {
-      "stage": "apps-script-test-version",
+      "stage": "source-candidate",
       "scriptId": "1c2O84bJoprkUtyo8eHb-yYmz1Mtttpo-8miUrKf3o3rzrVXUBfFU8M5C",
-      "version": 2,
-      "description": "Crack Spread Lab 0.1.0 privacy-final test release",
-      "pushedAt": "2026-07-29T06:49:27Z"
+      "cloudProjectId": "oilpriceapi-crack-spread",
+      "version": null,
+      "previousImmutableVersion": 3,
+      "description": "Crack Spread Lab 1.0.0 source candidate after credential and attribution hardening",
+      "pushedAt": null,
+      "previousPushedAt": "2026-07-30T14:25:15Z"
     },
     "fuel-surcharge-studio": {
-      "stage": "apps-script-test-version",
+      "stage": "source-candidate",
       "scriptId": "1Mii2a-nGgRmrnsV1rl_9wElmZfBrmhJgufYPqvDEjvN_s9xTQ8WHRtxN",
-      "version": 2,
-      "description": "Fuel Surcharge Studio 0.1.0 privacy-final test release",
-      "pushedAt": "2026-07-29T06:49:27Z"
+      "cloudProjectId": "oilpriceapi-fuel-surcharge",
+      "version": null,
+      "previousImmutableVersion": 4,
+      "description": "Fuel Surcharge Studio 1.0.0 source candidate after credential and attribution hardening",
+      "pushedAt": null,
+      "previousPushedAt": "2026-07-30T14:31:15Z"
     },
     "energy-curve-builder": {
-      "stage": "local-release-package",
-      "version": null
+      "stage": "source-candidate",
+      "scriptId": "1q3YQIyE17nv4uNLQV7Pdw3DwKFu8Yrp9Uwylxw6WPmWhwyKzv4xZZDLZ",
+      "cloudProjectId": "oilpriceapi-energy-curve",
+      "version": null,
+      "previousImmutableVersion": 1,
+      "description": "Energy Curve Builder 1.0.0 source candidate after credential and attribution hardening",
+      "pushedAt": null,
+      "previousPushedAt": "2026-07-30T14:26:57Z"
     },
     "bunker-voyage-planner": {
-      "stage": "local-release-package",
-      "version": null
+      "stage": "source-candidate",
+      "scriptId": "1aQLBBWhyd_ffw1h9gmVFromI-5MwQsGd2v9REoUhXOHziDgbTA2eqY-u",
+      "cloudProjectId": "oilpriceapi-bunker-voyage",
+      "version": null,
+      "previousImmutableVersion": 2,
+      "description": "Bunker Voyage Planner 1.0.0 source candidate after credential and attribution hardening",
+      "pushedAt": null,
+      "previousPushedAt": "2026-07-30T14:31:23Z"
     },
     "gas-spread-monitor": {
-      "stage": "local-release-package",
-      "version": null
+      "stage": "source-candidate",
+      "scriptId": "1Od5dLY-A8l-sULQidIuso3rJRjJvWIaI54JZpPQlCVyAk32phv2D1YSU",
+      "cloudProjectId": "oilpriceapi-gas-spread",
+      "version": null,
+      "previousImmutableVersion": 2,
+      "description": "Gas Spread Monitor 1.0.0 source candidate after credential and attribution hardening",
+      "pushedAt": null,
+      "previousPushedAt": "2026-07-30T14:31:28Z"
     }
   }
 }

@@ -122,6 +122,10 @@ configuration, a formula result, and key deletion. The prepared justification
 text is in `MARKETPLACE_LISTING.md`; the exact branding values, scope
 justifications, and recording sequence are in `OAUTH_VERIFICATION.md`.
 
+For the proven draft-install activation sequence, custom-function registration
+diagnostics, reviewer-fixture rules, and submission notes, follow
+`GOOGLE_MARKETPLACE_PLAYBOOK.md`.
+
 ## 5. Install a test Editor add-on
 
 Create a blank spreadsheet containing no customer data.

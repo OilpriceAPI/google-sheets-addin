@@ -48,6 +48,10 @@ function buildCrackSpreadWorkbook() {
     ['3-2-1', calculateCrackSpread_(crude, gasoline, distillate, '3-2-1'), '((2 × gasoline × 42) + (distillate × 42) − (3 × crude)) ÷ 3'],
     ['2-1-1', calculateCrackSpread_(crude, gasoline, distillate, '2-1-1'), '((gasoline × 42) + (distillate × 42) − (2 × crude)) ÷ 2']
   ]);
+  model.getRange('B12:B13').setFormulas([
+    ['=((2*B6*B8)+(B7*B8)-(3*B5))/3'],
+    ['=((B6*B8)+(B7*B8)-(2*B5))/2']
+  ]);
   model.getRange('B12:B13').setNumberFormat('$0.00');
 
   const historyRows = [['Series', 'Source timestamp', 'Price', 'Unit']];

@@ -136,6 +136,16 @@ that version in the Marketplace SDK.
 Prepared listing copy, scope justifications, required screenshot shots, and
 generated assets are in [MARKETPLACE_LISTING.md](MARKETPLACE_LISTING.md).
 
+The reusable launch and troubleshooting lessons are in
+[GOOGLE_MARKETPLACE_PLAYBOOK.md](GOOGLE_MARKETPLACE_PLAYBOOK.md). The separate
+public-video acquisition experiment is in
+[YOUTUBE_PROMOTION.md](YOUTUBE_PROMOTION.md).
+
+The five follow-on products and rollout order are in
+[PORTFOLIO.md](PORTFOLIO.md). Their immutable Apps Script candidates and
+remaining Google Console gates are tracked in
+[PORTFOLIO_SUBMISSION_READINESS.md](PORTFOLIO_SUBMISSION_READINESS.md).
+
 ## Canonical links
 
 - [Product facts](https://api.oilpriceapi.com/product-facts.json)

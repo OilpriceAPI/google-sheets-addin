@@ -97,8 +97,14 @@ and a non-customer test spreadsheet and OilPriceAPI key.
 11. Choose Delete API Key and show that the stored-key and diagnostic states
     are cleared.
 
-The recording must not expose an API key, Google account identifier, customer
-data, browser password manager, clipboard contents, or unrelated tabs.
+The recording must not expose an API key, customer data, browser password
+manager, clipboard contents, or unrelated tabs. Use a dedicated demo Google
+account because its identifier can appear as part of the required consent
+screen, and keep that reviewer copy Unlisted.
+
+The completed reviewer video is `https://youtu.be/FakNSmBddhE`. Keep it
+Unlisted. Create a different sanitized public acquisition video using
+`YOUTUBE_PROMOTION.md`.
 
 ## Future release order
 

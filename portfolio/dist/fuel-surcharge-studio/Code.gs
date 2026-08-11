@@ -2,6 +2,10 @@ const OPA_PRODUCT = Object.freeze({
   "id": "fuel-surcharge-studio",
   "name": "Fuel Surcharge Studio by OilPriceAPI",
   "menu": "Fuel Surcharge Studio",
+  "version": "1.0.0",
+  "cloudProjectId": "oilpriceapi-fuel-surcharge",
+  "iconMark": "FS",
+  "brandColor": "#15803D",
   "builder": "buildFuelSurchargeWorkbook",
   "tagline": "Turn diesel indexes into auditable carrier surcharge schedules.",
   "landingPath": "/integrations/fuel-surcharge-studio",
@@ -32,7 +36,7 @@ const OPA_PRODUCT = Object.freeze({
 const OPA_API_BASE_URL = 'https://api.oilpriceapi.com/v1';
 const OPA_KEY_PROPERTY = 'OILPRICEAPI_KEY';
 const OPA_ACTIVATED_PROPERTY = 'OILPRICEAPI_ACTIVATED_AT';
-const OPA_VERSION = '0.1.0';
+const OPA_VERSION = OPA_PRODUCT.version;
 const OPA_SIGNUP_URL = 'https://www.oilpriceapi.com/auth/signup';
 const OPA_ALLOWED_SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets.currentonly',
@@ -62,6 +66,7 @@ function showSidebar() {
   html.productName = OPA_PRODUCT.name;
   html.tagline = OPA_PRODUCT.tagline;
   html.builder = OPA_PRODUCT.builder;
+  html.version = OPA_VERSION;
   html.signupUrl = signupUrl_();
   html.landingUrl = landingUrl_();
   SpreadsheetApp.getUi().showSidebar(
@@ -89,9 +94,43 @@ function documentProperties_() {
   }
 }
 
+function activeSpreadsheetId_() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    return spreadsheet && typeof spreadsheet.getId === 'function'
+      ? spreadsheet.getId()
+      : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function spreadsheetKeyProperty_() {
+  const spreadsheetId = activeSpreadsheetId_();
+  return spreadsheetId ? `${OPA_KEY_PROPERTY}:${spreadsheetId}` : null;
+}
+
 function getApiKey_() {
-  const properties = documentProperties_();
-  return properties ? properties.getProperty(OPA_KEY_PROPERTY) : null;
+  const documentProperties = documentProperties_();
+  const documentKey = documentProperties
+    ? documentProperties.getProperty(OPA_KEY_PROPERTY)
+    : null;
+  if (documentKey) return documentKey;
+
+  // Installed add-on custom functions can run in a separate Apps Script
+  // authorization context where document properties are unavailable. Keep a
+  // compatibility copy in owner user properties, namespaced by spreadsheet ID,
+  // so the key cannot cross into another workbook.
+  const userProperties = PropertiesService.getUserProperties();
+  const spreadsheetKeyProperty = spreadsheetKeyProperty_();
+  const spreadsheetKey = spreadsheetKeyProperty
+    ? userProperties.getProperty(spreadsheetKeyProperty)
+    : null;
+  if (spreadsheetKey) return spreadsheetKey;
+
+  // Prototype releases used an unscoped user property. It cannot be tied to a
+  // source spreadsheet safely, so require the user to save the key again.
+  return null;
 }
 
 function requireApiKey_() {
@@ -105,18 +144,28 @@ function requireApiKey_() {
 function saveApiKey(apiKey) {
   const value = typeof apiKey === 'string' ? apiKey.trim() : '';
   if (!value || value.length > 512) throw new Error('Enter a valid OilPriceAPI key.');
-  const properties = documentProperties_();
-  if (!properties) throw new Error('Open the add-on from a spreadsheet before saving a key.');
-  properties.setProperty(OPA_KEY_PROPERTY, value);
+  const documentProperties = documentProperties_();
+  const spreadsheetKeyProperty = spreadsheetKeyProperty_();
+  if (!documentProperties || !spreadsheetKeyProperty) {
+    throw new Error('Open the add-on from a spreadsheet before saving a key.');
+  }
+  documentProperties.setProperty(OPA_KEY_PROPERTY, value);
+  const userProperties = PropertiesService.getUserProperties();
+  userProperties.setProperty(spreadsheetKeyProperty, value);
+  userProperties.deleteProperty(OPA_KEY_PROPERTY);
   return { success: true, configured: true };
 }
 
 function deleteApiKey() {
-  const properties = documentProperties_();
-  if (properties) {
-    properties.deleteProperty(OPA_KEY_PROPERTY);
-    properties.deleteProperty(OPA_ACTIVATED_PROPERTY);
+  const documentProperties = documentProperties_();
+  if (documentProperties) {
+    documentProperties.deleteProperty(OPA_KEY_PROPERTY);
+    documentProperties.deleteProperty(OPA_ACTIVATED_PROPERTY);
   }
+  const userProperties = PropertiesService.getUserProperties();
+  const spreadsheetKeyProperty = spreadsheetKeyProperty_();
+  if (spreadsheetKeyProperty) userProperties.deleteProperty(spreadsheetKeyProperty);
+  userProperties.deleteProperty(OPA_KEY_PROPERTY);
   return { success: true, configured: false };
 }
 
@@ -153,18 +202,24 @@ function requestJson_(path, apiKey) {
   if (!normalizedPath.startsWith('/') || normalizedPath.includes('://') || normalizedPath.includes('..')) {
     throw new Error('Unsupported OilPriceAPI path.');
   }
-  const response = UrlFetchApp.fetch(`${OPA_API_BASE_URL}${normalizedPath}`, {
-    method: 'get',
-    headers: {
-      Authorization: `Token ${apiKey}`,
-      Accept: 'application/json',
-      'X-OilPriceAPI-Client': `${OPA_PRODUCT.activationHeader}/${OPA_VERSION}`
-    },
-    muteHttpExceptions: true
-  });
+  let response;
+  try {
+    response = UrlFetchApp.fetch(`${OPA_API_BASE_URL}${normalizedPath}`, {
+      method: 'get',
+      headers: {
+        Authorization: `Token ${apiKey}`,
+        Accept: 'application/json',
+        'X-API-Client': `${OPA_PRODUCT.activationHeader}/${OPA_VERSION}`
+      },
+      muteHttpExceptions: true
+    });
+  } catch (error) {
+    throw new Error('OilPriceAPI could not be reached. Check the connection and retry.');
+  }
   const status = response.getResponseCode();
   if (status === 401) throw new Error('The OilPriceAPI key is invalid or revoked. Replace it in the sidebar.');
   if (status === 402 || status === 403) throw new Error('This dataset is not enabled for the account. Review OilPriceAPI pricing or use an entitled key.');
+  if (status === 408) throw new Error('The OilPriceAPI request timed out. Retry in a moment.');
   if (status === 429) throw new Error('The OilPriceAPI rate or quota limit was reached. Retry later or review the account limit.');
   if (status < 200 || status >= 300) throw new Error(`OilPriceAPI returned HTTP ${status}. Retry later.`);
   let payload;
@@ -184,14 +239,19 @@ function priceRecords_(payload) {
   else if (data && Array.isArray(data.prices)) records = data.prices;
   else if (data && data.prices && typeof data.prices === 'object') records = Object.values(data.prices);
   else if (data && typeof data === 'object' && ('price' in data || 'code' in data)) records = [data];
-  const normalized = records.map((record) => ({
-    code: String(record.code || '').toUpperCase(),
-    price: Number(record.price),
-    currency: String(record.currency || ''),
-    unit: String(record.unit || ''),
-    source: String(record.source || ''),
-    timestamp: String(record.created_at || record.as_of || record.timestamp || '')
-  }));
+  const normalized = records.map((record) => {
+    const rawPrice = record && record.price;
+    return {
+      code: String(record && record.code || '').toUpperCase(),
+      price: rawPrice === null || rawPrice === undefined || rawPrice === ''
+        ? NaN
+        : Number(rawPrice),
+      currency: String(record && record.currency || ''),
+      unit: String(record && record.unit || ''),
+      source: String(record && record.source || ''),
+      timestamp: String(record && (record.created_at || record.as_of || record.timestamp) || '')
+    };
+  });
   if (!normalized.length || normalized.some((record) => !record.code || !Number.isFinite(record.price))) {
     throw new Error('OilPriceAPI response is missing a finite market price.');
   }
@@ -225,7 +285,12 @@ function testConnection() {
   const probe = OPA_PRODUCT.allowedCodes.length
     ? latestPrices_([OPA_PRODUCT.allowedCodes[0]])[0]
     : productConnectionProbe_();
-  return { success: true, code: probe.code || probe.contract || 'curve', timestamp: probe.timestamp || '' };
+  return {
+    success: true,
+    code: probe.code || probe.contract || 'curve',
+    timestamp: probe.timestamp || '',
+    message: 'Connection and response schema verified.'
+  };
 }
 
 function activateProduct_() {
@@ -266,13 +331,20 @@ function surchargePerMile_(indexPrice, basePrice, milesPerGallon) {
   const index = Number(indexPrice);
   const base = Number(basePrice);
   const mpg = Number(milesPerGallon);
-  if (![index, base, mpg].every(Number.isFinite) || mpg <= 0) throw new Error('Surcharge inputs must be finite and MPG must be positive.');
+  if (![index, base, mpg].every(Number.isFinite)) throw new Error('Surcharge inputs must be finite.');
+  if (index < 0 || base < 0) throw new Error('Diesel index and base price must be non-negative.');
+  if (mpg <= 0) throw new Error('MPG must be positive.');
   return Math.max(0, index - base) / mpg;
 }
 
 function surchargeBands_(basePrice, milesPerGallon, startPrice, step, bandCount) {
   const count = Number(bandCount);
   if (!Number.isInteger(count) || count < 1 || count > 100) throw new Error('Band count must be an integer from 1 to 100.');
+  if (![basePrice, milesPerGallon, startPrice, step].map(Number).every(Number.isFinite)) {
+    throw new Error('Band inputs must be finite.');
+  }
+  if (Number(startPrice) < 0) throw new Error('Band start price must be non-negative.');
+  if (Number(step) <= 0) throw new Error('Band step must be positive.');
   const rows = [['Diesel index from', 'Diesel index through', 'Surcharge per mile']];
   for (let index = 0; index < count; index += 1) {
     const lower = Number(startPrice) + (index * Number(step));
@@ -302,6 +374,7 @@ function buildFuelSurchargeWorkbook() {
     ['Fleet fuel economy', mpg, 'miles/gallon'],
     ['Calculated surcharge', surchargePerMile_(national.price, basePrice, mpg), 'USD/mile']
   ]);
+  calculator.getRange('B8').setFormula('=MAX(0,B5-B6)/B7');
   calculator.getRange('B5:B6').setNumberFormat('$0.000');
   calculator.getRange('B8').setNumberFormat('$0.000');
 
@@ -309,6 +382,15 @@ function buildFuelSurchargeWorkbook() {
   writeTitle_(schedule, 'Publishable Surcharge Bands', 'Twenty five-cent diesel-index bands using the calculator assumptions.');
   const bands = surchargeBands_(basePrice, mpg, Math.max(0, basePrice), 0.25, 20);
   writeTable_(schedule, 4, 1, bands);
+  const bandFormulas = Array.from({ length: 20 }, (_, index) => {
+    const row = index + 5;
+    return [
+      `='Surcharge Calculator'!$B$6+(ROW()-5)*0.25`,
+      `=A${row}+0.249`,
+      `=MAX(0,A${row}-'Surcharge Calculator'!$B$6)/'Surcharge Calculator'!$B$7`
+    ];
+  });
+  schedule.getRange(5, 1, 20, 3).setFormulas(bandFormulas);
   schedule.getRange(5, 1, 20, 3).setNumberFormat('$0.000');
 
   activateProduct_();

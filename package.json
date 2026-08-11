@@ -1,11 +1,11 @@
 {
   "name": "oilpriceapi-google-sheets-addin",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "private": true,
   "description": "Google Sheets Editor add-on for source-aware OilPriceAPI formulas",
   "license": "MIT",
   "scripts": {
-    "test": "node --test test/runtime.test.js test/public-claims.test.js",
+    "test": "node --test test/runtime.test.js test/public-claims.test.js test/secret-scan.test.js",
     "test:portfolio": "node --test test/portfolio.test.js",
     "test:live": "node test/live-smoke.js",
     "portfolio:build": "node scripts/build-portfolio.js",
@@ -13,7 +13,7 @@
     "assets": "node scripts/generate-marketplace-assets.js",
     "verify:assets": "node scripts/verify-marketplace-assets.js",
     "verify:deploy": "node scripts/verify-deploy-package.js",
-    "validate": "npm run portfolio:build && node test/validate_code.js && node --test test/runtime.test.js test/public-claims.test.js test/portfolio.test.js && node scripts/verify-deploy-package.js && node scripts/verify-marketplace-assets.js && node scripts/verify-portfolio.js && ./scripts/scan-secrets.sh",
+    "validate": "npm run portfolio:build && node test/validate_code.js && node --test test/runtime.test.js test/public-claims.test.js test/portfolio.test.js test/secret-scan.test.js && node scripts/verify-deploy-package.js && node scripts/verify-marketplace-assets.js && node scripts/verify-portfolio.js && ./scripts/scan-secrets.sh",
     "clasp:login": "clasp login",
     "clasp:configure": "node scripts/configure-clasp.js",
     "clasp:status": "clasp status",
@@ -27,5 +27,8 @@
   "devDependencies": {
     "@google/clasp": "3.3.0",
     "sharp": "0.35.3"
+  },
+  "overrides": {
+    "uuid": "11.1.1"
   }
 }

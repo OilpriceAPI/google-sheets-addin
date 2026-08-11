@@ -940,6 +940,15 @@ test("request block keys include a bounded path prefix as well as a hash", () =>
   assert.ok(keys.request.length < 180);
 });
 
+test("cache digest pairs preserve their namespace boundary", () => {
+  const harness = createHarness();
+  assert.equal(harness.context.combineCacheDigests_("ab", "cde"), "ab_cde");
+  assert.notEqual(
+    harness.context.combineCacheDigests_("ab", "cde"),
+    harness.context.combineCacheDigests_("abc", "de"),
+  );
+});
+
 test("latest values use the document cache across spreadsheet viewers", () => {
   const harness = createHarness();
   configure(harness);

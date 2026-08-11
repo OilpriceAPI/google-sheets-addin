@@ -415,6 +415,10 @@ function stableCacheDigest_(value) {
   return (hash >>> 0).toString(36);
 }
 
+function combineCacheDigests_(primaryDigest, secondaryDigest) {
+  return `${primaryDigest}_${secondaryDigest}`;
+}
+
 function requestBlockKeys_(path) {
   const endpoint = requestEndpoint_(path);
   return {
@@ -782,8 +786,10 @@ function namespacedCacheKey_(cacheKey, cacheScope) {
   if (cacheScope === 'user') {
     const spreadsheetId = getActiveSpreadsheetId_();
     if (!spreadsheetId) return null;
-    const spreadsheetHash =
-      `${stableCacheDigest_(spreadsheetId)}${stableCacheDigest_(`sheet:${spreadsheetId}`)}`;
+    const spreadsheetHash = combineCacheDigests_(
+      stableCacheDigest_(spreadsheetId),
+      stableCacheDigest_(`sheet:${spreadsheetId}`)
+    );
     return `opa_u_${spreadsheetHash}_${cacheGeneration_()}_${cacheKey}`;
   }
   return `opa_d_${cacheGeneration_()}_${cacheKey}`;

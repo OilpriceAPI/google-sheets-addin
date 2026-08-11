@@ -24,6 +24,16 @@ test("secret scan detects credentials without printing their values", (t) => {
   assert.equal(output.includes(credential), false);
 });
 
+test("secret scan detects bare 64-hex production API keys", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "opa-secret-scan-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const credential = "a".repeat(64);
+  fs.writeFileSync(path.join(root, "credential.txt"), credential);
+
+  assert.deepEqual(findPotentialSecretFiles(root), ["credential.txt"]);
+  assert.equal(formatFindings(["credential.txt"]).includes(credential), false);
+});
+
 test("secret scan ignores dependency and scanner implementation paths", (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "opa-secret-scan-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

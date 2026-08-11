@@ -70,9 +70,17 @@ test("operator records preserve the exact release and Google submission state", 
   assert.match(runtime, /ADDON_VERSION = '1\.3\.1'/);
   assert.match(deployment, /Public runtime version: `1\.2\.2`/);
   assert.match(deployment, /Repository release candidate: `1\.3\.1`/);
-  assert.match(deployment, /Latest immutable Apps Script version: `12`/);
-  assert.match(listing, /Public Marketplace Apps Script version: `11`/);
-  assert.match(records, /version 12[\s\S]{0,240}never published/i);
+  assert.match(
+    deployment,
+    /Latest immutable Apps Script version: `12` \(runtime `1\.3\.0`/,
+  );
+  assert.match(
+    listing,
+    /Public Marketplace Apps Script version: `11` \(runtime `1\.2\.2`\)/,
+  );
+  for (const record of [deployment, listing, oauth]) {
+    assert.match(record, /version 12[\s\S]{0,240}never published/i);
+  }
   assert.match(records, /publicly available/i);
   assert.match(
     records,
@@ -119,6 +127,21 @@ test("sidebar gives an in-product privacy notice and policy links", () => {
 test("legacy credential migration requires an explicit spreadsheet reconfigure", () => {
   const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
   assert.match(readme, /unscoped keys[\s\S]{0,260}save the key again/i);
+});
+
+test("validation and production release workflows block on dependency audit", () => {
+  for (const workflow of ["validate.yml", "apps-script-release.yml"]) {
+    const contents = fs.readFileSync(
+      path.join(ROOT, ".github", "workflows", workflow),
+      "utf8",
+    );
+    assert.match(contents, /npm audit --audit-level=moderate/);
+  }
+
+  const results = fs.readFileSync(path.join(ROOT, "TEST_RESULTS.md"), "utf8");
+  assert.match(results, /npm audit --audit-level=moderate/);
+  assert.match(results, /0 vulnerabilities/);
+  assert.doesNotMatch(results, /reports moderate transitive[\s\S]{0,120}advisories/i);
 });
 
 test("public surfaces contain no unsupported mutable claims", () => {

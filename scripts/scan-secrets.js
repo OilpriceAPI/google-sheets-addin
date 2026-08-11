@@ -4,6 +4,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const PATTERNS = [
+  // Production API keys are bare 64-character hex values. Keep this exact
+  // detector; known checksum-bearing files are allowlisted by path below.
   /[0-9a-fA-F]{64}/,
   /sk-[A-Za-z0-9_-]{20,}/,
   /AIza[A-Za-z0-9_-]{30,}/,

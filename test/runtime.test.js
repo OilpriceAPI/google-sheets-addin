@@ -426,6 +426,71 @@ test("OILPRICE supports the production flat record and caches its source data", 
   );
 });
 
+test("a CacheService outage degrades to a live response", () => {
+  const harness = createHarness();
+  configure(harness);
+  const unavailable = () => {
+    throw new Error("Cache service unavailable");
+  };
+  harness.context.CacheService.getDocumentCache = unavailable;
+  harness.context.CacheService.getUserCache = unavailable;
+  harness.queue(200, latestBody());
+
+  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+  assert.equal(harness.requests.length, 1);
+});
+
+for (const operation of ["get", "put", "remove"]) {
+  test(`a cache ${operation} failure does not replace live API data`, () => {
+    const harness = createHarness();
+    configure(harness);
+    const cache = {
+      get: () => null,
+      put: () => {},
+      remove: () => {},
+    };
+    cache[operation] = () => {
+      throw new Error(`Cache ${operation} unavailable`);
+    };
+    harness.context.CacheService.getDocumentCache = () => cache;
+    harness.context.CacheService.getUserCache = () => cache;
+    harness.queue(200, latestBody());
+
+    assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+    assert.equal(harness.requests.length, 1);
+  });
+}
+
+for (const operation of ["getDocumentLock", "tryLock", "releaseLock"]) {
+  test(`a lock ${operation} failure degrades to an unlocked live response`, () => {
+    const harness = createHarness();
+    configure(harness);
+    harness.context.LockService.getDocumentLock = () => ({
+      tryLock: () => true,
+      releaseLock: () => {},
+    });
+    if (operation === "getDocumentLock") {
+      harness.context.LockService.getDocumentLock = () => {
+        throw new Error("Lock service unavailable");
+      };
+    } else {
+      harness.context.LockService.getDocumentLock = () => ({
+        tryLock: () => {
+          if (operation === "tryLock") throw new Error("Lock service unavailable");
+          return true;
+        },
+        releaseLock: () => {
+          if (operation === "releaseLock") throw new Error("Lock service unavailable");
+        },
+      });
+    }
+    harness.queue(200, latestBody());
+
+    assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+    assert.equal(harness.requests.length, 1);
+  });
+}
+
 test("quota failures are cached and repeated formulas do not refetch", () => {
   const harness = createHarness();
   configure(harness);
@@ -533,6 +598,90 @@ test("OILPRICE_TABLE batches a range and primes the shared latest cache", () => 
   assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
   assert.equal(harness.requests.length, 1);
   assert.match(harness.requests[0].url, /by_code=WTI_USD%2CBRENT_CRUDE_USD$/);
+});
+
+test("OILPRICE_TABLE preserves valid rows when one batch record is malformed", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(
+    200,
+    historyBody([
+      {
+        code: "WTI_USD",
+        price: "not-a-number",
+        currency: "USD",
+        unit: "barrel",
+        created_at: "2026-07-19T14:10:50.373Z",
+      },
+      {
+        code: "BRENT_CRUDE_USD",
+        price: 85.45,
+        currency: "USD",
+        unit: "barrel",
+        source: "market_reporting",
+        created_at: "2026-07-19T14:10:50.373Z",
+      },
+    ]),
+  );
+
+  const table = JSON.parse(
+    JSON.stringify(
+      harness.context.OILPRICE_TABLE([["WTI_USD"], ["BRENT_CRUDE_USD"]]),
+    ),
+  );
+  assert.equal(table[1][0], "WTI_USD");
+  assert.match(table[1][1], /^#INVALID_RESPONSE:/);
+  assert.deepEqual(table[2], [
+    "BRENT_CRUDE_USD",
+    85.45,
+    "USD",
+    "barrel",
+    "market_reporting",
+    "2026-07-19T14:10:50.373Z",
+  ]);
+  assert.equal(harness.context.OILPRICE_PRICE("BRENT_CRUDE_USD"), 85.45);
+  assert.equal(harness.requests.length, 1);
+});
+
+test("history cache reuses the endpoint bucket for equivalent lookbacks", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(
+    200,
+    historyBody([
+      {
+        code: "WTI_USD",
+        price: 81.78,
+        currency: "USD",
+        unit: "barrel",
+        created_at: "2026-07-19T14:10:50.373Z",
+      },
+    ]),
+  );
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.context.OILPRICE_HISTORY("WTI_USD", 8))),
+    [["2026-07-19T14:10:50.373Z", 81.78]],
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.context.OILPRICE_HISTORY("WTI_USD", 15))),
+    [["2026-07-19T14:10:50.373Z", 81.78]],
+  );
+  assert.equal(harness.requests.length, 1);
+});
+
+test("request block keys include a bounded path prefix as well as a hash", () => {
+  const harness = createHarness();
+  const keys = harness.context.requestBlockKeys_(
+    "/prices/latest?by_code=WTI_USD",
+  );
+
+  assert.match(keys.endpoint, /request_block_endpoint__v1_prices_latest_[a-z0-9]+$/);
+  assert.match(
+    keys.request,
+    /request_block_request__prices_latest_by_code_WTI_USD_[a-z0-9]+$/,
+  );
+  assert.ok(keys.request.length < 180);
 });
 
 test("latest values use the document cache across spreadsheet viewers", () => {

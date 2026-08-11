@@ -27,6 +27,7 @@ const CACHE_TTL_SECONDS = {
   rigCount: 3600
 };
 const MAX_CACHE_TTL_SECONDS = 21600;
+let cachedGeneration_ = null;
 
 // Keep generic worksheet requests aligned with the Excel add-in's reviewed
 // endpoint catalog. Add endpoints deliberately after API-shape tests exist.
@@ -142,9 +143,9 @@ function showAbout() {
   const ui = SpreadsheetApp.getUi();
   ui.alert(
     'OilPriceAPI for Google Sheets™',
-    `Version ${ADDON_VERSION}\n\n` +
+    `Runtime version: ${ADDON_VERSION}\n\n` +
       'Source-timestamped energy price data. Dataset access and freshness vary.\n\n' +
-      'Available in Google Workspace Marketplace.\n\n' +
+      'Available in Google Workspace Marketplace. The listing runtime is managed separately during staged releases.\n\n' +
       `Install: ${MARKETPLACE_URL}\n\n` +
       'Website: https://www.oilpriceapi.com\n' +
       'Docs: https://docs.oilpriceapi.com',
@@ -234,6 +235,7 @@ function saveApiKey(apiKey) {
   userProperties.setProperty(spreadsheetKeyProperty, apiKey.trim());
   userProperties.setProperty(`${CACHE_GENERATION_PROPERTY}:${getActiveSpreadsheetId_()}`, cacheGeneration);
   userProperties.deleteProperty(KEY_PROPERTY);
+  cachedGeneration_ = null;
   return {
     success: true,
     message: 'API key saved for this spreadsheet in Apps Script properties.'
@@ -254,6 +256,7 @@ function deleteApiKey() {
   if (spreadsheetId) userProperties.deleteProperty(`${CACHE_GENERATION_PROPERTY}:${spreadsheetId}`);
   userProperties.deleteProperty(KEY_PROPERTY);
   userProperties.deleteProperty(LAST_DIAGNOSTIC_PROPERTY);
+  cachedGeneration_ = null;
   return {
     success: true,
     message: 'Stored spreadsheet API key and request diagnostic deleted.'
@@ -310,17 +313,25 @@ function responseHeader_(response, name) {
 }
 
 function cacheGeneration_() {
+  if (cachedGeneration_ !== null) return cachedGeneration_;
   const documentProperties = getDocumentProperties_();
   const documentGeneration = documentProperties
     ? documentProperties.getProperty(CACHE_GENERATION_PROPERTY)
     : null;
-  if (documentGeneration) return documentGeneration;
+  if (documentGeneration) {
+    cachedGeneration_ = documentGeneration;
+    return cachedGeneration_;
+  }
 
   const spreadsheetId = getActiveSpreadsheetId_();
-  if (!spreadsheetId) return 'legacy';
-  return PropertiesService.getUserProperties().getProperty(
+  if (!spreadsheetId) {
+    cachedGeneration_ = 'legacy';
+    return cachedGeneration_;
+  }
+  cachedGeneration_ = PropertiesService.getUserProperties().getProperty(
     `${CACHE_GENERATION_PROPERTY}:${spreadsheetId}`
   ) || 'legacy';
+  return cachedGeneration_;
 }
 
 function stableCacheHash_(value) {
@@ -330,7 +341,9 @@ function stableCacheHash_(value) {
     hash ^= text.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
-  return (hash >>> 0).toString(36);
+  const digest = (hash >>> 0).toString(36);
+  const slug = text.replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 96);
+  return `${slug}_${digest}`;
 }
 
 function requestBlockKeys_(path) {
@@ -674,11 +687,22 @@ function validatePriceRecord_(record, subject) {
 }
 
 function cacheStore_(scope) {
+  if (typeof CacheService === 'undefined') return null;
   if (scope === 'document' && typeof CacheService.getDocumentCache === 'function') {
-    const documentCache = CacheService.getDocumentCache();
-    if (documentCache) return documentCache;
+    try {
+      const documentCache = CacheService.getDocumentCache();
+      if (documentCache) return documentCache;
+    } catch (error) {
+      // Fall through to the per-user cache when the document cache is unavailable.
+    }
   }
-  return CacheService.getUserCache();
+  try {
+    return typeof CacheService.getUserCache === 'function'
+      ? CacheService.getUserCache()
+      : null;
+  } catch (error) {
+    return null;
+  }
 }
 
 function namespacedCacheKey_(cacheKey) {
@@ -686,28 +710,42 @@ function namespacedCacheKey_(cacheKey) {
 }
 
 function getCachedValue_(cacheKey, maxAgeSeconds, scope) {
-  const cache = cacheStore_(scope || 'document');
-  const namespacedKey = namespacedCacheKey_(cacheKey);
-  const raw = cache.get(namespacedKey);
-  if (!raw) return null;
-
-  let envelope;
   try {
-    envelope = JSON.parse(raw);
+    const cache = cacheStore_(scope || 'document');
+    if (!cache || typeof cache.get !== 'function') return null;
+    const namespacedKey = namespacedCacheKey_(cacheKey);
+    const raw = cache.get(namespacedKey);
+    if (!raw) return null;
+
+    let envelope;
+    try {
+      envelope = JSON.parse(raw);
+    } catch (error) {
+      try {
+        cache.remove(namespacedKey);
+      } catch (removeError) {
+        // An invalid entry can expire naturally if removal is unavailable.
+      }
+      return null;
+    }
+    if (
+      !envelope ||
+      typeof envelope.cachedAt !== 'number' ||
+      !Object.prototype.hasOwnProperty.call(envelope, 'value') ||
+      Date.now() - envelope.cachedAt > maxAgeSeconds * 1000
+    ) {
+      try {
+        cache.remove(namespacedKey);
+      } catch (removeError) {
+        // An expired entry can expire naturally if removal is unavailable.
+      }
+      return null;
+    }
+    return envelope.value;
   } catch (error) {
-    cache.remove(namespacedKey);
+    // Cache failures must degrade to a live request.
     return null;
   }
-  if (
-    !envelope ||
-    typeof envelope.cachedAt !== 'number' ||
-    !Object.prototype.hasOwnProperty.call(envelope, 'value') ||
-    Date.now() - envelope.cachedAt > maxAgeSeconds * 1000
-  ) {
-    cache.remove(namespacedKey);
-    return null;
-  }
-  return envelope.value;
 }
 
 function putCachedValue_(cacheKey, value, ttlSeconds, scope) {
@@ -723,7 +761,14 @@ function putCachedValue_(cacheKey, value, ttlSeconds, scope) {
 }
 
 function removeCachedValue_(cacheKey, scope) {
-  cacheStore_(scope || 'document').remove(namespacedCacheKey_(cacheKey));
+  try {
+    const cache = cacheStore_(scope || 'document');
+    if (cache && typeof cache.remove === 'function') {
+      cache.remove(namespacedCacheKey_(cacheKey));
+    }
+  } catch (error) {
+    // Request-block cleanup must not replace a valid live response.
+  }
 }
 
 function cacheMissLock_() {
@@ -731,13 +776,22 @@ function cacheMissLock_() {
     typeof LockService === 'undefined' ||
     typeof LockService.getDocumentLock !== 'function'
   ) return null;
-  return LockService.getDocumentLock();
+  try {
+    return LockService.getDocumentLock();
+  } catch (error) {
+    return null;
+  }
 }
 
 function withCacheMissLock_(cacheKey, maxAgeSeconds, loader) {
   const lock = cacheMissLock_();
   if (!lock) return loader();
-  const acquired = lock.tryLock(5000);
+  let acquired;
+  try {
+    acquired = lock.tryLock(5000);
+  } catch (error) {
+    return loader();
+  }
   if (!acquired) {
     const afterWait = getCachedValue_(cacheKey, maxAgeSeconds, 'document');
     if (afterWait !== null) return afterWait;
@@ -750,7 +804,11 @@ function withCacheMissLock_(cacheKey, maxAgeSeconds, loader) {
     const afterLock = getCachedValue_(cacheKey, maxAgeSeconds, 'document');
     return afterLock !== null ? afterLock : loader();
   } finally {
-    lock.releaseLock();
+    try {
+      lock.releaseLock();
+    } catch (error) {
+      // Releasing a transient service handle must not replace live data.
+    }
   }
 }
 
@@ -827,8 +885,15 @@ function getLatestRecords_(codes) {
   let records = readLatestRecordsFromCache_(codes, ttlSeconds);
   if (records.size === codes.length) return codes.map((code) => records.get(code));
 
-  const lock = cacheMissLock_();
-  const acquired = !lock || lock.tryLock(5000);
+  let lock = cacheMissLock_();
+  let acquired = true;
+  if (lock) {
+    try {
+      acquired = lock.tryLock(5000);
+    } catch (error) {
+      lock = null;
+    }
+  }
   if (!acquired) {
     records = readLatestRecordsFromCache_(codes, latestCacheTtl_());
     if (records.size === codes.length) return codes.map((code) => records.get(code));
@@ -847,26 +912,43 @@ function getLatestRecords_(codes) {
         `/prices/latest?by_code=${encodeURIComponent(missingCodes.join(','))}`,
         requireApiKey_()
       );
-      const returned = extractPriceRecords_(body, 'prices').map((record) =>
-        validatePriceRecord_(record, 'Price record')
-      );
       const missingSet = new Set(missingCodes);
-      for (const record of returned) {
+      const recordErrors = new Map();
+      for (const rawRecord of extractPriceRecords_(body, 'prices')) {
+        let rawCode;
+        try {
+          rawCode = normalizeCode_(rawRecord && (rawRecord.code || rawRecord.symbol), 'Price record code');
+        } catch (error) {
+          continue;
+        }
+        if (!missingSet.has(rawCode)) continue;
+        let record;
+        try {
+          record = validatePriceRecord_(rawRecord, 'Price record');
+        } catch (error) {
+          recordErrors.set(rawCode, error);
+          continue;
+        }
         if (!missingSet.has(record.code)) continue;
         records.set(record.code, record);
         putCachedValue_(`latest_${record.code}`, record, latestCacheTtl_(), 'document');
       }
-    }
-    const unresolved = codes.filter((code) => !records.has(code));
-    if (unresolved.length > 0) {
-      throw makeError_(
-        'NO_DATA',
-        `No latest value was returned for ${unresolved.join(', ')}.`
-      );
+      for (const code of missingCodes) {
+        if (!records.has(code) && !recordErrors.has(code)) {
+          recordErrors.set(code, makeError_('NO_DATA', `No latest value was returned for ${code}.`));
+        }
+      }
+      return codes.map((code) => records.get(code) || { code, error: recordErrors.get(code) });
     }
     return codes.map((code) => records.get(code));
   } finally {
-    if (lock) lock.releaseLock();
+    if (lock) {
+      try {
+        lock.releaseLock();
+      } catch (error) {
+        // Releasing a transient service handle must not replace live data.
+      }
+    }
   }
 }
 
@@ -1206,14 +1288,16 @@ function OILPRICE_TABLE(commodityCodes) {
     const codes = normalizeCodeRange_(commodityCodes);
     const records = getLatestRecords_(codes);
     return [['Code', 'Price', 'Currency', 'Unit', 'Source', 'Source Timestamp']].concat(
-      records.map((record) => [
-        record.code,
-        record.price,
-        record.currency,
-        record.unit,
-        record.source,
-        record.timestamp
-      ])
+      records.map((record) => record.error
+        ? [record.code, formulaError_(record.error), '', '', '', '']
+        : [
+          record.code,
+          record.price,
+          record.currency,
+          record.unit,
+          record.source,
+          record.timestamp
+        ])
     );
   } catch (error) {
     return formulaTableError_(error);
@@ -1346,14 +1430,14 @@ function OILPRICE_HISTORY(commodityCode, days) {
     if (!Number.isInteger(requestedDays) || requestedDays < 1 || requestedDays > 365) {
       throw makeError_('INVALID_INPUT', 'History days must be an integer from 1 through 365.');
     }
-    const cacheKey = `history_${code}_${requestedDays}`;
-    const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.history, 'document');
-    if (cached) return cached;
-
     let endpoint = 'past_year';
     if (requestedDays <= 1) endpoint = 'past_day';
     else if (requestedDays <= 7) endpoint = 'past_week';
     else if (requestedDays <= 30) endpoint = 'past_month';
+
+    const cacheKey = `history_${code}_${endpoint}`;
+    const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.history, 'document');
+    if (cached) return cached;
 
     return withCacheMissLock_(cacheKey, CACHE_TTL_SECONDS.history, () => {
       const body = requestJson_(

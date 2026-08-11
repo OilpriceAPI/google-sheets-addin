@@ -24,6 +24,7 @@ test("public surfaces identify Marketplace status and canonical facts", () => {
   ).join("\n");
   const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
   const runtime = fs.readFileSync(path.join(ROOT, "Code.gs"), "utf8");
+  const docs = fs.readFileSync(path.join(ROOT, "docs/index.html"), "utf8");
   assert.match(readme, /publicly available in Google Workspace Marketplace/i);
   assert.match(
     text,
@@ -31,6 +32,8 @@ test("public surfaces identify Marketplace status and canonical facts", () => {
   );
   assert.doesNotMatch(runtime, /Marketplace publication is pending/i);
   assert.doesNotMatch(text, /Marketplace submission steps remain/i);
+  assert.doesNotMatch(docs, /MARKETPLACE REJECTED|remediation in progress/i);
+  assert.match(runtime, /listing runtime is managed separately during staged releases/i);
   assert.match(text, /https:\/\/api\.oilpriceapi\.com\/product-facts\.json/);
 });
 

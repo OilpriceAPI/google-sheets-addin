@@ -53,6 +53,7 @@ function validateCode() {
     "testConnection",
     "fetchLatestPrices",
     "OILPRICE",
+    "OILPRICE_TABLE",
     "OILPRICE_HISTORY",
     "OILPRICE_CONVERT",
     "BUNKER_PRICE",
@@ -77,7 +78,8 @@ function validateCode() {
   assert.doesNotMatch(code, /function getApiKey\(\)/);
   assert.match(code, /function requestJson_\(/);
   assert.match(code, /statusCode === 401/);
-  assert.match(code, /statusCode === 402 \|\| statusCode === 403/);
+  assert.match(code, /statusCode === 402/);
+  assert.match(code, /statusCode === 403/);
   assert.match(code, /statusCode === 429/);
   assert.match(code, /function getCachedValue_\(/);
   assert.match(code, /sourceTimestamp_/);
@@ -95,7 +97,10 @@ function validateUi() {
   assert.doesNotMatch(sidebar, /\.getApiKey\(\)/);
   assert.match(sidebar, /\.deleteApiKey\(\)/);
   assert.match(sidebar, /type="password"/);
-  assert.match(sidebar, /Marketplace publication (?:is )?pending/i);
+  assert.match(
+    sidebar,
+    /workspace\.google\.com\/marketplace\/app\/oilpriceapi_for_google_sheets\/991152473434/,
+  );
   assert.match(sidebar, /\.getLastDiagnostic\(\)/);
   assert.match(dialog, /fetchLatestPrices\(codes\)/);
   assert.match(dialog, /google\.script\.host\.close/);

@@ -6,7 +6,8 @@ test installation, screenshots, and submission require the publisher account.
 
 ## Current release gate
 
-- Runtime version: `1.2.2`
+- Public runtime version: `1.2.2`
+- Repository release candidate: `1.3.0`
 - Production Apps Script ID:
   `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`
 - Current immutable Apps Script version: `11` (runtime `1.2.2`, cut
@@ -17,21 +18,19 @@ test installation, screenshots, and submission require the publisher account.
   `https://github.com/OilpriceAPI/google-sheets-addin/actions/workflows/apps-script-release.yml`
   Note: versions 9-11 were cut locally with `npm run deploy:version`, not by
   this workflow, whose only run to date is 2026-07-24.
-- Marketplace status: **version 9 draft submitted for review**. Version 9 was
-  cut 2026-07-28 16:53 EDT and therefore predates BOTH PR #19 (OAuth
-  verification prep) and PR #22 (custom-function credential fix). **Version 11
-  is the release candidate — repin App Configuration from 9 to 11 before
-  publishing.** Nothing has ever been published; there is no live listing.
+- Marketplace status: **published** at
+  `https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434`.
+  The public listing points to immutable Apps Script version 11 (`1.2.2`).
+  Do not select the `1.3.0` candidate until its exact immutable version passes
+  an installed Marketplace formula smoke.
 - Runtime push/version and local deployment checks: complete
 - Marketplace review receipt and a real 1280x800 screenshot: complete
 - Public homepage, privacy policy, and terms deployment: complete
-- Separate OAuth verification dependency: confirm Search Console ownership,
-  record the end-to-end authorization demo, submit branding and data-access
-  verification, and preserve the confirmation receipt
-- Canonical remaining-work issue:
-  `https://github.com/OilpriceAPI/google-sheets-addin/issues/20`
+- OAuth verification was submitted July 30, 2026 with reviewer video
+  `https://youtu.be/FakNSmBddhE`.
 
-Do not claim Marketplace availability until Google publishes the listing.
+Do not claim that a new runtime is public until App Configuration selects its
+smoke-proven immutable version.
 
 ## 1. Choose the publisher and Cloud project
 
@@ -192,7 +191,7 @@ screenshots until they have been reviewed for secrets and customer data.
 After the smoke passes against the exact pushed source:
 
 ```bash
-npm run deploy:version -- "OilPriceAPI for Google Sheets 1.2.2"
+npm run deploy:version -- "OilPriceAPI for Google Sheets 1.3.0 customer-path recovery"
 npm run deploy:list
 ```
 
@@ -250,21 +249,22 @@ Verify locally before upload:
 npm run verify:assets
 ```
 
-Save the listing as a draft while OAuth verification or screenshot review is
-pending.
+For a copy update, save a draft and preserve the existing public version until
+the replacement is approved and smoke-tested.
 
 ## 11. Submit and post-publication smoke
 
-1. Submit OAuth verification if required.
-2. Submit the public Marketplace listing for review.
-3. Track the Marketplace SDK publication status and review email sent to
-   `support@oilpriceapi.com`.
-4. After approval, install the public listing using a separate clean account.
-5. Repeat the customer-critical smoke against the published version.
+1. Push the exact reviewed release and create an immutable Apps Script version.
+2. Install that version with a non-customer test account before changing the
+   public Marketplace configuration.
+3. Run key save/test, `OILPRICE_PRICE`, `OILPRICE_TABLE`, quota recovery, and
+   key deletion checks.
+4. Select the proven version in Marketplace App Configuration.
+5. Repeat the customer-critical smoke through the public listing.
 6. Review Apps Script execution logs for new errors, retries, unexpected
    authorization failures, and noisy request patterns.
-7. Only then update public marketing copy to say the add-on is available from
-   the Google Workspace Marketplace and add the real listing URL.
+7. Record the exact version, account type, formulas, timestamps, and redacted
+   screenshots in the release issue.
 
 ## Updating an approved release
 

@@ -4,77 +4,34 @@ This packet is for the production Google Cloud project
 `oilpriceapi-sheets-addon` (`991152473434`) and the original
 `OilPriceAPI for Google Sheets™` add-on.
 
-## Status as of July 31, 2026
+## Status as of August 11, 2026
 
-Release evidence below is from July 29, 2026. The "Current Google state"
-section was re-verified against the live Cloud console on July 31, 2026.
+Customer-visible Google evidence:
 
-Completed release evidence:
+- The listing is publicly available at
+  `https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434`.
+- The public Marketplace configuration points to immutable Apps Script version
+  **11**, runtime `1.2.2`.
+- OAuth verification was submitted on July 30, 2026 for Cloud project
+  `991152473434`. The reviewer-accessible continuous demonstration is
+  `https://youtu.be/FakNSmBddhE`.
+- A Marketplace draft install previously proved custom-function registration,
+  spreadsheet-scoped key save, connection/schema validation,
+  `OILPRICE_PRICE("WTI_USD")`, `OILPRICE_CODES()`, and sidebar batch fetch.
+- Public availability was independently rechecked unauthenticated on August
+  10, 2026; the canonical URL returned the OilPriceAPI listing while a bogus
+  application ID returned Google error 400.
 
-- Add-on PR 19 merged as
-  `799f49f46059340ed332431f5c7ac87f5c91a695`.
-- All 49 runtime, recovery, disclosure, deployment-package, asset, portfolio,
-  and secret-scan checks passed.
-- The exact merged runtime was pushed to the production Apps Script project.
-- Immutable Apps Script version 10 was created with description
-  `OilPriceAPI for Google Sheets 1.2.1 OAuth verification`.
-- A fresh clone of version 10 matched the four-file reviewed release package
-  exactly.
-- **Superseded by version 11.** PR #22 (custom-function credential fix) merged
-  2026-07-29 22:01 UTC, after version 10 was cut, and changed `Code.gs` and
-  `Sidebar.html`. Immutable version 11 was cut the same minute (18:01 EDT) and
-  carries runtime `1.2.2`; its `Code.gs` reads `ADDON_VERSION = '1.2.2'`
-  (verified 2026-07-31). Version 11 is the release candidate.
-- Website PR 1461 merged as
-  `c3acb510680992538315781fb0ce3dcec335bf20`.
-- Production deployment
-  `https://github.com/OilpriceAPI/website-clean/actions/runs/30434284989`
-  completed successfully, including production and money-page smoke checks
-  and a Cloudflare purge.
-- Cache-busted checks returned HTTP 200 without a cross-domain redirect for
-  the homepage, privacy policy, and terms. The responses contained the
-  expected scope, Limited Use, and current-formula disclosures.
-- DigitalOcean deployment `65aaf4e7-df6a-44aa-a89b-de796963e442` is ACTIVE.
-  Its first 500 runtime log lines contained no matched errors, warnings,
-  retries, timeouts, or 5xx responses.
+Historical release evidence remains relevant: PR #22 supplied the
+custom-function credential-context fix, immutable version 11 was cut after it,
+and the three functional scopes below were used for submission. Earlier draft
+versions 9 and 10 are superseded.
 
-Current Google state:
-
-- The Marketplace **Store Listing** draft is in review. That tab reports
-  "The draft is in review and can't be edited" and exposes a "Cancel review"
-  control.
-- The Marketplace **App Configuration** tab is _editable_ during that review.
-  Verified 2026-07-31 by DOM inspection of the Cloud console: every input
-  reports `disabled: false`, `readOnly: false`, with no `aria-disabled`. The
-  Version field is a free-text `<input type="text">`, not a dropdown, and
-  currently holds `9`. "Save Draft" is greyed only for want of unsaved
-  changes.
-  **Correction:** earlier revisions of this document asserted the App
-  Configuration was locked during review. That is wrong, and it nearly drove
-  an unnecessary cancel-and-recut. The accurate rule is: **Store Listing locks
-  during review; App Configuration does not.**
-- Apps Script **version 11** (runtime `1.2.2`) is the current release
-  candidate and is not yet selected in App Configuration, which still points
-  at version 9.
-- OAuth publishing status is **In production**.
-- OAuth branding is **not verified**.
-- OAuth data access is **not verified**.
-- OAuth verification has **not been submitted**.
-- No public OAuth demonstration URL or Google submission receipt exists yet.
-
-Remaining owner-session work:
-
-1. Confirm that a Cloud project owner/editor is a verified Search Console owner
-   for `oilpriceapi.com`.
-2. Record and publish the continuous end-to-end OAuth demonstration below.
-3. Update Marketplace App Configuration to Apps Script version **11**. This
-   does not have to wait for Google - App Configuration is editable while the
-   Store Listing is in review.
-4. Submit OAuth branding and data-access verification with the exact scopes,
-   justifications, and public video URL.
-5. Capture the confirmation text, date, case/reference ID if present, and
-   redacted screenshots in issue 20:
-   `https://github.com/OilpriceAPI/google-sheets-addin/issues/20`.
+Private Cloud-console fields are not inferred from public availability. The
+customer release gate is the public listing plus an installed-add-on formula
+smoke. Runtime `1.3.0` must therefore remain a release candidate until it is
+merged, pushed, cut as a new immutable Apps Script version, installed through
+Marketplace, and smoke-tested before App Configuration is updated.
 
 ## Branding values
 
@@ -142,21 +99,14 @@ and a non-customer test spreadsheet and OilPriceAPI key.
 The recording must not expose an API key, Google account identifier, customer
 data, browser password manager, clipboard contents, or unrelated tabs.
 
-## Submission order
+## Future release order
 
-1. Deploy the public homepage, privacy policy, and terms above.
-2. Confirm all three URLs return `200` without authentication or redirects to
-   another domain.
-3. Confirm Search Console ownership for `oilpriceapi.com`.
-4. Push and smoke the exact reviewed Apps Script source.
-5. Create a new immutable Apps Script version and enter that version in the
-   Marketplace SDK.
-6. Record and upload the demo video with link visibility enabled for the
-   Google review team.
-7. In Google Auth Platform, verify branding first, then submit Data Access
-   verification with the scope justifications and demo link.
-8. Keep the Workspace Marketplace listing in review only after the OAuth
-   verification request is accepted for review.
+1. Validate and merge the exact reviewed source.
+2. Push it to the production Apps Script project and create a new immutable
+   version without changing the public Marketplace configuration.
+3. Install and smoke that candidate with a non-customer account.
+4. Select the candidate in Marketplace App Configuration only after key,
+   formula, batching, quota-recovery, and key-deletion checks pass.
+5. Repeat the smoke through the public listing and review Apps Script logs.
 
-Do not claim that the add-on is publicly installable until Google approves and
-publishes the Marketplace listing.
+Do not claim that a new runtime is public before its selected-version smoke.

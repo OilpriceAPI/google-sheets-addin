@@ -3,12 +3,10 @@
 Deployment-ready Editor add-on for source-aware OilPriceAPI formulas in Google
 Sheets™.
 
-> Google Workspace Marketplace publication is pending. The public listing was
-> submitted on July 26, 2026, rejected on July 27 pending trademark attribution
-> and OAuth verification remediation, and resubmitted on July 29 after the
-> listing, homepage, scopes, and Apps Script version were reconciled. Google
-> Cloud currently reports that the draft is in review. Do not claim Marketplace
-> availability until Google approves and publishes the listing.
+The add-on is [publicly available in Google Workspace Marketplace](https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434).
+The public listing currently points to immutable Apps Script version 11
+(`1.2.2`). Runtime `1.3.0` is a release candidate until its installed-add-on
+smoke and Marketplace version update are recorded.
 
 Dataset access, history, freshness, and limits depend on the API key, source,
 and account entitlement. Review the
@@ -43,11 +41,12 @@ The original `OILPRICE(code)` formula remains supported for existing sheets.
 
 | Function | Behavior | Cache |
 | --- | --- | --- |
-| `OILPRICE(code)` | Backward-compatible numeric latest price | 5 minutes |
+| `OILPRICE(code)` | Backward-compatible numeric latest price | Tier-aware shared cache |
+| `OILPRICE_TABLE(range)` | Up to 25 latest prices in one spilled request | Tier-aware shared cache |
 | `OILPRICE_HISTORY(code, days)` | Source timestamp and price rows | 1 hour |
 | `OILPRICE_CONVERT(code)` | Reference USD/MMBtu conversion for documented mappings | Latest-price cache |
-| `BUNKER_PRICE(port, fuel)` | Numeric Data Connector bunker price | None |
-| `BUNKER_PORT_PRICES(port)` | Bunker-price table with units and timestamp | None |
+| `BUNKER_PRICE(port, fuel)` | Numeric Data Connector bunker price | 5 minutes |
+| `BUNKER_PORT_PRICES(port)` | Bunker-price table with units and timestamp | 5 minutes |
 | `FUTURES_PRICE(contract)` | Numeric first-contract price | 5 minutes |
 | `FUTURES_CURVE(contract)` | Month, price, and change rows | 5 minutes |
 | `RIG_COUNT(type)` | Oil, gas, total, or source-dated table | 1 hour |
@@ -67,7 +66,11 @@ The original `OILPRICE(code)` formula remains supported for existing sheets.
   the Excel preview.
 - Credential-shaped query keys are rejected before any network request.
 - Missing, invalid, locked, rate-limited, timed-out, malformed, and empty
-  responses fail with worksheet-readable recovery text.
+  responses fail with worksheet-readable recovery text. Terminal failures are
+  negatively cached and a connection check bypasses the cache so a paid upgrade
+  recovers immediately.
+- Latest values use a document cache and a lock-protected miss path. Free,
+  paid, and enterprise cache lifetimes follow the API's canonical tier header.
 - Latest-request diagnostics contain endpoint path, status, duration,
   timestamp, and optional request ID—never the API key or query string.
 - The manifest requests only current-sheet, external-request, and container-UI
@@ -119,7 +122,7 @@ npm run clasp:login
 read -r "OPA_SCRIPT_ID?Apps Script ID: "
 npm run clasp:configure -- "$OPA_SCRIPT_ID"
 npm run deploy:push
-npm run deploy:version -- "OilPriceAPI for Google Sheets 1.2.2 formula credential context fix"
+npm run deploy:version -- "OilPriceAPI for Google Sheets 1.3.0 customer-path recovery"
 ```
 
 Editor add-on publication uses the Apps Script **script ID and version
@@ -132,6 +135,7 @@ generated assets are in [MARKETPLACE_LISTING.md](MARKETPLACE_LISTING.md).
 ## Canonical links
 
 - [Product facts](https://api.oilpriceapi.com/product-facts.json)
+- [Workspace Marketplace listing](https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434)
 - [API documentation](https://docs.oilpriceapi.com)
 - [Pricing and dataset access](https://www.oilpriceapi.com/pricing)
 - [Data usage](https://www.oilpriceapi.com/legal/data-usage)

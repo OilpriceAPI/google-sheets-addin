@@ -23,6 +23,7 @@
     <div class="card">
       <strong>OilPriceAPI key</strong>
       <p class="muted">Stored only in this spreadsheet's Apps Script document properties. The stored value is never displayed.</p>
+      <p class="muted">Prototype testers must save the key again in each spreadsheet so the retired unscoped credential is never reused elsewhere.</p>
       <input id="key" type="password" autocomplete="off" placeholder="Paste API key">
       <button id="save" onclick="saveKey()">Save key</button>
       <button class="secondary" id="test" onclick="testKey()">Test connection</button>

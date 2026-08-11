@@ -25,7 +25,7 @@ function fetchWithCurl(url, options) {
     'request = "GET"',
     `header = "Authorization: ${curlConfigValue(options.headers.Authorization)}"`,
     'header = "Accept: application/json"',
-    `header = "X-OilPriceAPI-Client: ${curlConfigValue(options.headers["X-OilPriceAPI-Client"])}"`,
+    `header = "X-API-Client: ${curlConfigValue(options.headers["X-API-Client"])}"`,
     "silent",
     "show-error",
     'write-out = "\\n__HTTP_STATUS__:%{http_code}"',

@@ -66,15 +66,13 @@ Covered behavior includes:
 Command:
 
 ```bash
-npm audit --omit=dev
+npm audit --audit-level=moderate
 ```
 
-Result: 0 runtime vulnerabilities.
-
-The current official clasp development dependency reports moderate transitive
-development-tool advisories. It is not shipped to Apps Script. Do not use clasp
-to serve untrusted local files; update it when Google publishes a dependency
-refresh.
+Result on 2026-08-11: 0 vulnerabilities. The audit includes the development
+toolchain used to validate and publish the Apps Script package. `@google/clasp`
+remains pinned to `3.3.0`; the lockfile override resolves its transitive `uuid`
+dependency to `11.1.1` without downgrading the release CLI.
 
 ## Production API smoke
 

@@ -1,23 +1,34 @@
 /**
  * OilPriceAPI Google Sheets add-on.
  *
- * Google Workspace Marketplace publication is pending.
+ * Public listing: https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434
  * Product facts: https://api.oilpriceapi.com/product-facts.json
  */
 
 const API_BASE_URL = 'https://api.oilpriceapi.com/v1';
-const ADDON_VERSION = '1.2.2';
+const ADDON_VERSION = '1.3.1';
 const KEY_PROPERTY = 'OILPRICEAPI_KEY';
 const LAST_DIAGNOSTIC_PROPERTY = 'OILPRICEAPI_LAST_DIAGNOSTIC';
+const CACHE_GENERATION_PROPERTY = 'OILPRICEAPI_CACHE_GENERATION';
 const MAX_BATCH_CODES = 25;
 const PRICING_URL = 'https://www.oilpriceapi.com/pricing';
 const SIGNUP_URL = 'https://www.oilpriceapi.com/auth/signup';
+const MARKETPLACE_URL = 'https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434';
 const CACHE_TTL_SECONDS = {
   latest: 300,
+  latestFree: 3600,
+  latestEnterprise: 60,
+  generic: 300,
+  catalog: 21600,
+  bunker: 300,
+  exchangeRates: 3600,
   history: 3600,
   futures: 300,
   rigCount: 3600
 };
+const MAX_CACHE_TTL_SECONDS = 21600;
+let cachedGeneration_ = null;
+let cachedCacheScope_ = null;
 
 // Keep generic worksheet requests aligned with the Excel add-in's reviewed
 // endpoint catalog. Add endpoints deliberately after API-shape tests exist.
@@ -133,9 +144,10 @@ function showAbout() {
   const ui = SpreadsheetApp.getUi();
   ui.alert(
     'OilPriceAPI for Google Sheets™',
-    `Version ${ADDON_VERSION}\n\n` +
+    `Runtime version: ${ADDON_VERSION}\n\n` +
       'Source-timestamped energy price data. Dataset access and freshness vary.\n\n' +
-      'Google Workspace Marketplace publication is pending.\n\n' +
+      'Available in Google Workspace Marketplace. The listing runtime is managed separately during staged releases.\n\n' +
+      `Install: ${MARKETPLACE_URL}\n\n` +
       'Website: https://www.oilpriceapi.com\n' +
       'Docs: https://docs.oilpriceapi.com',
     ui.ButtonSet.OK
@@ -182,10 +194,7 @@ function getApiKey_() {
   const spreadsheetKey = spreadsheetKeyProperty
     ? userProperties.getProperty(spreadsheetKeyProperty)
     : null;
-  if (spreadsheetKey) return spreadsheetKey;
-
-  // Migration fallback for keys saved by releases before Apps Script version 6.
-  return userProperties.getProperty(KEY_PROPERTY);
+  return spreadsheetKey || null;
 }
 
 function requireApiKey_() {
@@ -215,9 +224,17 @@ function saveApiKey(apiKey) {
     );
   }
   documentProperties.setProperty(KEY_PROPERTY, apiKey.trim());
+  const previousGeneration = Number(documentProperties.getProperty(CACHE_GENERATION_PROPERTY));
+  const cacheGeneration = String(
+    Math.max(Date.now(), Number.isFinite(previousGeneration) ? previousGeneration + 1 : 0)
+  );
+  documentProperties.setProperty(CACHE_GENERATION_PROPERTY, cacheGeneration);
   const userProperties = PropertiesService.getUserProperties();
   userProperties.setProperty(spreadsheetKeyProperty, apiKey.trim());
+  userProperties.setProperty(`${CACHE_GENERATION_PROPERTY}:${getActiveSpreadsheetId_()}`, cacheGeneration);
   userProperties.deleteProperty(KEY_PROPERTY);
+  cachedGeneration_ = null;
+  cachedCacheScope_ = null;
   return {
     success: true,
     message: 'API key saved for this spreadsheet in Apps Script properties.'
@@ -229,12 +246,17 @@ function deleteApiKey() {
   if (documentProperties) {
     documentProperties.deleteProperty(KEY_PROPERTY);
     documentProperties.deleteProperty(LAST_DIAGNOSTIC_PROPERTY);
+    documentProperties.deleteProperty(CACHE_GENERATION_PROPERTY);
   }
   const userProperties = PropertiesService.getUserProperties();
   const spreadsheetKeyProperty = getSpreadsheetKeyProperty_();
   if (spreadsheetKeyProperty) userProperties.deleteProperty(spreadsheetKeyProperty);
+  const spreadsheetId = getActiveSpreadsheetId_();
+  if (spreadsheetId) userProperties.deleteProperty(`${CACHE_GENERATION_PROPERTY}:${spreadsheetId}`);
   userProperties.deleteProperty(KEY_PROPERTY);
   userProperties.deleteProperty(LAST_DIAGNOSTIC_PROPERTY);
+  cachedGeneration_ = null;
+  cachedCacheScope_ = null;
   return {
     success: true,
     message: 'Stored spreadsheet API key and request diagnostic deleted.'
@@ -290,6 +312,220 @@ function responseHeader_(response, name) {
   return key && typeof headers[key] === 'string' ? headers[key].slice(0, 128) : '';
 }
 
+function cacheContext_() {
+  if (cachedGeneration_ !== null && cachedCacheScope_ !== null) {
+    return { generation: cachedGeneration_, scope: cachedCacheScope_ };
+  }
+  const documentProperties = getDocumentProperties_();
+  const documentKey = documentProperties
+    ? documentProperties.getProperty(KEY_PROPERTY)
+    : null;
+  const documentGeneration = documentProperties
+    ? documentProperties.getProperty(CACHE_GENERATION_PROPERTY)
+    : null;
+  if (documentKey && documentGeneration && documentGeneration !== 'legacy') {
+    cachedGeneration_ = documentGeneration;
+    cachedCacheScope_ = 'document';
+    return { generation: cachedGeneration_, scope: cachedCacheScope_ };
+  }
+
+  const spreadsheetId = getActiveSpreadsheetId_();
+  let userGeneration = null;
+  if (spreadsheetId) {
+    try {
+      userGeneration = PropertiesService.getUserProperties().getProperty(
+        `${CACHE_GENERATION_PROPERTY}:${spreadsheetId}`
+      );
+    } catch (error) {
+      // Unknown credential contexts must remain isolated in the user cache.
+    }
+  }
+  cachedGeneration_ = userGeneration || 'legacy';
+  cachedCacheScope_ = 'user';
+  return { generation: cachedGeneration_, scope: cachedCacheScope_ };
+}
+
+function cacheGeneration_() {
+  return cacheContext_().generation;
+}
+
+function effectiveCacheScope_(requestedScope) {
+  if (requestedScope === 'user') return 'user';
+  return cacheContext_().scope;
+}
+
+function nextCacheGeneration_(previousGeneration) {
+  const previous = Number(previousGeneration);
+  return String(
+    Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)
+  );
+}
+
+function invalidateCacheGeneration_() {
+  const currentContext = cacheContext_();
+  const generation = nextCacheGeneration_(currentContext.generation);
+  let activeScopeInvalidated = false;
+  if (currentContext.scope === 'document') {
+    const documentProperties = getDocumentProperties_();
+    if (documentProperties) {
+      try {
+        documentProperties.setProperty(CACHE_GENERATION_PROPERTY, generation);
+        activeScopeInvalidated = true;
+      } catch (error) {
+        // A fallback generation cannot invalidate an active document cache.
+      }
+    }
+  }
+  const spreadsheetId = getActiveSpreadsheetId_();
+  if (spreadsheetId) {
+    try {
+      PropertiesService.getUserProperties().setProperty(
+        `${CACHE_GENERATION_PROPERTY}:${spreadsheetId}`,
+        generation
+      );
+      if (currentContext.scope === 'user') activeScopeInvalidated = true;
+    } catch (error) {
+      // A confirmed document write remains sufficient for document scope.
+    }
+  }
+  cachedGeneration_ = null;
+  cachedCacheScope_ = null;
+  if (!activeScopeInvalidated) {
+    throw makeError_(
+      'RETRY_LATER',
+      'Connection succeeded, but cached worksheet state could not be refreshed. Run Test Connection again.'
+    );
+  }
+}
+
+function stableCacheHash_(value) {
+  const text = String(value || '');
+  const digest = stableCacheDigest_(text);
+  const slug = text.replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 96);
+  return `${slug}_${digest}`;
+}
+
+function stableCacheDigest_(value) {
+  let hash = 2166136261;
+  const text = String(value || '');
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function combineCacheDigests_(primaryDigest, secondaryDigest) {
+  return `${primaryDigest}_${secondaryDigest}`;
+}
+
+function requestBlockKeys_(path) {
+  const endpoint = requestEndpoint_(path);
+  return {
+    global: 'request_block_global',
+    endpoint: `request_block_endpoint_${stableCacheHash_(endpoint)}`,
+    request: `request_block_request_${stableCacheHash_(String(path))}`
+  };
+}
+
+function cachedRequestBlock_(path) {
+  const keys = requestBlockKeys_(path);
+  for (const key of [keys.global, keys.endpoint, keys.request]) {
+    const blocked = getCachedValue_(key, MAX_CACHE_TTL_SECONDS, 'document');
+    if (blocked && typeof blocked.code === 'string' && typeof blocked.message === 'string') {
+      return blocked;
+    }
+  }
+  return null;
+}
+
+function clearRequestBlocks_(path) {
+  const keys = requestBlockKeys_(path);
+  for (const key of [keys.global, keys.endpoint, keys.request]) {
+    removeCachedValue_(key, 'document');
+  }
+}
+
+function retryWindowSeconds_(response, fallbackSeconds) {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const reset = Number(responseHeader_(response, 'X-RateLimit-Reset'));
+  if (Number.isFinite(reset) && reset > nowSeconds) {
+    return Math.min(MAX_CACHE_TTL_SECONDS, Math.max(1, Math.ceil(reset - nowSeconds)));
+  }
+
+  const retryAfter = responseHeader_(response, 'Retry-After');
+  const numericRetry = Number(retryAfter);
+  if (Number.isFinite(numericRetry) && numericRetry > 0) {
+    const seconds = numericRetry > nowSeconds ? numericRetry - nowSeconds : numericRetry;
+    return Math.min(MAX_CACHE_TTL_SECONDS, Math.max(1, Math.ceil(seconds)));
+  }
+  const retryDate = new Date(retryAfter).getTime();
+  if (Number.isFinite(retryDate) && retryDate > Date.now()) {
+    return Math.min(
+      MAX_CACHE_TTL_SECONDS,
+      Math.max(1, Math.ceil((retryDate - Date.now()) / 1000))
+    );
+  }
+  return fallbackSeconds;
+}
+
+function responseMessage_(response) {
+  try {
+    const body = JSON.parse(response.getContentText());
+    const data = body && (body.data || body);
+    if (data && typeof data.message === 'string' && data.message.trim()) {
+      return data.message.trim().slice(0, 320);
+    }
+  } catch (error) {
+    // Use status-derived recovery text when the error body is unreadable.
+  }
+  return '';
+}
+
+function blockRequest_(path, statusCode, response, error) {
+  const keys = requestBlockKeys_(path);
+  let key = null;
+  let ttlSeconds = 0;
+  if (statusCode === 401) {
+    key = keys.global;
+    ttlSeconds = MAX_CACHE_TTL_SECONDS;
+  } else if (statusCode === 402) {
+    key = keys.global;
+    ttlSeconds = retryWindowSeconds_(response, MAX_CACHE_TTL_SECONDS);
+  } else if (statusCode === 429) {
+    key = keys.global;
+    ttlSeconds = retryWindowSeconds_(response, 60);
+  } else if (statusCode === 403) {
+    key = keys.endpoint;
+    ttlSeconds = MAX_CACHE_TTL_SECONDS;
+  } else if (statusCode === 404) {
+    key = keys.request;
+    ttlSeconds = 3600;
+  }
+  if (key && ttlSeconds > 0) {
+    putCachedValue_(
+      key,
+      { code: error.code, message: error.message },
+      ttlSeconds,
+      'document'
+    );
+  }
+}
+
+function rememberResponseTier_(response) {
+  const tier = responseHeader_(response, 'X-RateLimit-Tier').trim().toLowerCase();
+  if (/^[a-z0-9_-]{1,32}$/.test(tier)) {
+    putCachedValue_('account_tier', tier, MAX_CACHE_TTL_SECONDS, 'document');
+  }
+}
+
+function latestCacheTtl_() {
+  const tier = getCachedValue_('account_tier', MAX_CACHE_TTL_SECONDS, 'document');
+  if (tier === 'free') return CACHE_TTL_SECONDS.latestFree;
+  if (tier === 'enterprise') return CACHE_TTL_SECONDS.latestEnterprise;
+  return CACHE_TTL_SECONDS.latest;
+}
+
 function persistDiagnostic_(input) {
   try {
     const diagnostic = {
@@ -336,9 +572,14 @@ function getLastDiagnostic() {
   }
 }
 
-function requestJson_(path, apiKey) {
+function requestJson_(path, apiKey, options) {
   const startedAt = Date.now();
   const endpoint = requestEndpoint_(path);
+  const bypassBlock = options && options.bypassBlock === true;
+  if (!bypassBlock) {
+    const blocked = cachedRequestBlock_(path);
+    if (blocked) throw makeError_(blocked.code, blocked.message);
+  }
   let response;
   try {
     const relativePath = String(path).startsWith('/v1/') ? String(path).slice(3) : String(path);
@@ -346,7 +587,15 @@ function requestJson_(path, apiKey) {
       method: 'get',
       headers: {
         'Authorization': `Token ${apiKey}`,
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        // Apps Script locks User-Agent, so the server's client classifier is fed
+        // via X-API-Client instead (MinimalAnalyticsService.explicit_client_marker,
+        // which already maps oilpriceapi-google-sheets -> client_type
+        // 'sdk-google-sheets'). Without this, every call from this add-on lands as
+        // client_type 'unknown' and the add-on is invisible in adoption reporting.
+        // 285 users were sitting in 'unknown' when this was found. (#6167)
+        'X-API-Client': 'oilpriceapi-google-sheets',
+        'X-Client-Version': ADDON_VERSION
       },
       muteHttpExceptions: true
     });
@@ -362,21 +611,40 @@ function requestJson_(path, apiKey) {
 
   const statusCode = response.getResponseCode();
   const requestId = responseHeader_(response, 'x-request-id');
+  rememberResponseTier_(response);
   if (statusCode === 401) {
+    const apiError = makeError_('AUTH_INVALID', `Invalid or revoked API key. Replace it from ${SIGNUP_URL}.`);
     persistDiagnostic_({ result: 'http-error', code: 'AUTH_INVALID', endpoint, durationMs: Date.now() - startedAt, httpStatus: statusCode, requestId });
-    throw makeError_('AUTH_INVALID', `Invalid or revoked API key. Replace it from ${SIGNUP_URL}.`);
+    blockRequest_(path, statusCode, response, apiError);
+    throw apiError;
   }
-  if (statusCode === 402 || statusCode === 403) {
+  if (statusCode === 402) {
+    const detail = responseMessage_(response);
+    const apiError = makeError_(
+      'UPGRADE_REQUIRED',
+      `${detail ? `${detail} ` : ''}Review or upgrade access at ${PRICING_URL}.`
+    );
     persistDiagnostic_({ result: 'http-error', code: 'UPGRADE_REQUIRED', endpoint, durationMs: Date.now() - startedAt, httpStatus: statusCode, requestId });
-    throw makeError_('UPGRADE_REQUIRED', `This account cannot access the requested dataset. Review ${PRICING_URL}.`);
+    blockRequest_(path, statusCode, response, apiError);
+    throw apiError;
+  }
+  if (statusCode === 403) {
+    const apiError = makeError_('UPGRADE_REQUIRED', `This account cannot access the requested dataset. Review ${PRICING_URL}.`);
+    persistDiagnostic_({ result: 'http-error', code: 'UPGRADE_REQUIRED', endpoint, durationMs: Date.now() - startedAt, httpStatus: statusCode, requestId });
+    blockRequest_(path, statusCode, response, apiError);
+    throw apiError;
   }
   if (statusCode === 429) {
+    const apiError = makeError_('RATE_LIMITED', 'OilPriceAPI rate or quota limit reached. Wait for the current limit window before retrying.');
     persistDiagnostic_({ result: 'http-error', code: 'RATE_LIMITED', endpoint, durationMs: Date.now() - startedAt, httpStatus: statusCode, requestId });
-    throw makeError_('RATE_LIMITED', 'OilPriceAPI rate or quota limit reached. Wait for the current limit window before retrying.');
+    blockRequest_(path, statusCode, response, apiError);
+    throw apiError;
   }
   if (statusCode === 404) {
+    const apiError = makeError_('NO_DATA', 'The requested OilPriceAPI resource was not found. Check the code and endpoint.');
     persistDiagnostic_({ result: 'http-error', code: 'NO_DATA', endpoint, durationMs: Date.now() - startedAt, httpStatus: statusCode, requestId });
-    throw makeError_('NO_DATA', 'The requested OilPriceAPI resource was not found. Check the code and endpoint.');
+    blockRequest_(path, statusCode, response, apiError);
+    throw apiError;
   }
   if (statusCode === 400 || statusCode === 422) {
     let message = `OilPriceAPI rejected the request (HTTP ${statusCode}).`;
@@ -400,6 +668,8 @@ function requestJson_(path, apiKey) {
     persistDiagnostic_({ result: 'http-error', code: 'ERROR', endpoint, durationMs: Date.now() - startedAt, httpStatus: statusCode, requestId });
     throw makeError_('ERROR', `OilPriceAPI request failed with HTTP ${statusCode}.`);
   }
+
+  clearRequestBlocks_(path);
 
   let body;
   try {
@@ -489,60 +759,289 @@ function validatePriceRecord_(record, subject) {
   };
 }
 
-function getCachedValue_(cacheKey, maxAgeSeconds) {
-  const cache = CacheService.getUserCache();
-  const raw = cache.get(cacheKey);
-  if (!raw) return null;
-
-  let envelope;
-  try {
-    envelope = JSON.parse(raw);
-  } catch (error) {
-    cache.remove(cacheKey);
-    return null;
-  }
+function cacheStoreContext_(scope) {
+  if (typeof CacheService === 'undefined') return null;
+  const effectiveScope = effectiveCacheScope_(scope || 'document');
   if (
-    !envelope ||
-    typeof envelope.cachedAt !== 'number' ||
-    !Object.prototype.hasOwnProperty.call(envelope, 'value') ||
-    Date.now() - envelope.cachedAt > maxAgeSeconds * 1000
+    effectiveScope === 'document' &&
+    typeof CacheService.getDocumentCache === 'function'
   ) {
-    cache.remove(cacheKey);
+    try {
+      const documentCache = CacheService.getDocumentCache();
+      if (documentCache) return { store: documentCache, scope: 'document' };
+    } catch (error) {
+      // Fall through to the per-user cache when the document cache is unavailable.
+    }
+  }
+  try {
+    if (typeof CacheService.getUserCache !== 'function') return null;
+    const userCache = CacheService.getUserCache();
+    return userCache ? { store: userCache, scope: 'user' } : null;
+  } catch (error) {
     return null;
   }
-  return envelope.value;
 }
 
-function putCachedValue_(cacheKey, value, ttlSeconds) {
-  CacheService.getUserCache().put(
-    cacheKey,
-    JSON.stringify({ cachedAt: Date.now(), value }),
-    ttlSeconds
-  );
+function namespacedCacheKey_(cacheKey, cacheScope) {
+  if (cacheScope === 'user') {
+    const spreadsheetId = getActiveSpreadsheetId_();
+    if (!spreadsheetId) return null;
+    const spreadsheetHash = combineCacheDigests_(
+      stableCacheDigest_(spreadsheetId),
+      stableCacheDigest_(`sheet:${spreadsheetId}`)
+    );
+    return `opa_u_${spreadsheetHash}_${cacheGeneration_()}_${cacheKey}`;
+  }
+  return `opa_d_${cacheGeneration_()}_${cacheKey}`;
+}
+
+function getCachedValue_(cacheKey, maxAgeSeconds, scope) {
+  try {
+    const cacheContext = cacheStoreContext_(scope || 'document');
+    if (!cacheContext || typeof cacheContext.store.get !== 'function') return null;
+    const namespacedKey = namespacedCacheKey_(cacheKey, cacheContext.scope);
+    if (!namespacedKey) return null;
+    const raw = cacheContext.store.get(namespacedKey);
+    if (!raw) return null;
+
+    let envelope;
+    try {
+      envelope = JSON.parse(raw);
+    } catch (error) {
+      try {
+        cacheContext.store.remove(namespacedKey);
+      } catch (removeError) {
+        // An invalid entry can expire naturally if removal is unavailable.
+      }
+      return null;
+    }
+    if (
+      !envelope ||
+      typeof envelope.cachedAt !== 'number' ||
+      !Object.prototype.hasOwnProperty.call(envelope, 'value') ||
+      Date.now() - envelope.cachedAt > maxAgeSeconds * 1000
+    ) {
+      try {
+        cacheContext.store.remove(namespacedKey);
+      } catch (removeError) {
+        // An expired entry can expire naturally if removal is unavailable.
+      }
+      return null;
+    }
+    return envelope.value;
+  } catch (error) {
+    // Cache failures must degrade to a live request.
+    return null;
+  }
+}
+
+function putCachedValue_(cacheKey, value, ttlSeconds, scope) {
+  try {
+    const cacheContext = cacheStoreContext_(scope || 'document');
+    if (!cacheContext || typeof cacheContext.store.put !== 'function') return;
+    const namespacedKey = namespacedCacheKey_(cacheKey, cacheContext.scope);
+    if (!namespacedKey) return;
+    cacheContext.store.put(
+      namespacedKey,
+      JSON.stringify({ cachedAt: Date.now(), value }),
+      Math.min(MAX_CACHE_TTL_SECONDS, Math.max(1, Math.round(ttlSeconds)))
+    );
+  } catch (error) {
+    // Cache limits or transient cache failures must not replace live API data.
+  }
+}
+
+function removeCachedValue_(cacheKey, scope) {
+  try {
+    const cacheContext = cacheStoreContext_(scope || 'document');
+    if (cacheContext && typeof cacheContext.store.remove === 'function') {
+      const namespacedKey = namespacedCacheKey_(cacheKey, cacheContext.scope);
+      if (namespacedKey) cacheContext.store.remove(namespacedKey);
+    }
+  } catch (error) {
+    // Request-block cleanup must not replace a valid live response.
+  }
+}
+
+function cacheMissLock_() {
+  if (
+    typeof LockService === 'undefined' ||
+    typeof LockService.getDocumentLock !== 'function'
+  ) return null;
+  try {
+    return LockService.getDocumentLock();
+  } catch (error) {
+    return null;
+  }
+}
+
+function withCacheMissLock_(cacheKey, maxAgeSeconds, loader) {
+  const lock = cacheMissLock_();
+  if (!lock) return loader();
+  let acquired;
+  try {
+    acquired = lock.tryLock(5000);
+  } catch (error) {
+    return loader();
+  }
+  if (!acquired) {
+    const afterWait = getCachedValue_(cacheKey, maxAgeSeconds, 'document');
+    if (afterWait !== null) return afterWait;
+    throw makeError_(
+      'RETRY_LATER',
+      'Another sheet calculation is refreshing this value. Recalculate shortly.'
+    );
+  }
+  try {
+    const afterLock = getCachedValue_(cacheKey, maxAgeSeconds, 'document');
+    return afterLock !== null ? afterLock : loader();
+  } finally {
+    try {
+      lock.releaseLock();
+    } catch (error) {
+      // Releasing a transient service handle must not replace live data.
+    }
+  }
+}
+
+function cachedRequestJson_(cacheKey, path, ttlSeconds) {
+  const cached = getCachedValue_(cacheKey, ttlSeconds, 'document');
+  if (cached !== null) return cached;
+  return withCacheMissLock_(cacheKey, ttlSeconds, () => {
+    const body = requestJson_(path, requireApiKey_());
+    putCachedValue_(cacheKey, body, ttlSeconds, 'document');
+    return body;
+  });
 }
 
 function getLatestRecord_(commodityCode) {
   const code = normalizeCode_(commodityCode, 'Commodity code');
   const cacheKey = `latest_${code}`;
-  const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.latest);
+  const ttlSeconds = latestCacheTtl_();
+  const cached = getCachedValue_(cacheKey, ttlSeconds, 'document');
   if (cached) return cached;
 
-  const body = requestJson_(`/prices/latest?by_code=${encodeURIComponent(code)}`, requireApiKey_());
-  let record;
-  try {
-    record = validatePriceRecord_(extractPriceRecords_(body, 'price')[0], 'Price record');
-  } catch (error) {
-    persistDiagnostic_({
-      result: 'invalid-response',
-      code: 'INVALID_RESPONSE',
-      endpoint: '/v1/prices/latest',
-      durationMs: 0,
-      httpStatus: 200
-    });
-    throw error;
+  return withCacheMissLock_(cacheKey, ttlSeconds, () => {
+    const body = requestJson_(`/prices/latest?by_code=${encodeURIComponent(code)}`, requireApiKey_());
+    let record;
+    try {
+      record = validatePriceRecord_(extractPriceRecords_(body, 'price')[0], 'Price record');
+    } catch (error) {
+      persistDiagnostic_({
+        result: 'invalid-response',
+        code: 'INVALID_RESPONSE',
+        endpoint: '/v1/prices/latest',
+        durationMs: 0,
+        httpStatus: 200
+      });
+      throw error;
+    }
+    putCachedValue_(cacheKey, record, latestCacheTtl_(), 'document');
+    return record;
+  });
+}
+
+function normalizeCodeRange_(values) {
+  const rows = Array.isArray(values) ? values : [values];
+  const flattened = [];
+  for (const row of rows) {
+    if (Array.isArray(row)) flattened.push(...row);
+    else flattened.push(row);
   }
-  putCachedValue_(cacheKey, record, CACHE_TTL_SECONDS.latest);
-  return record;
+  const codes = [];
+  for (const value of flattened) {
+    if (value === null || value === undefined || String(value).trim() === '') continue;
+    const code = normalizeCode_(value, 'Commodity code');
+    if (!codes.includes(code)) codes.push(code);
+  }
+  if (codes.length === 0) {
+    throw makeError_('INVALID_CODE', 'Select at least one commodity code.');
+  }
+  if (codes.length > MAX_BATCH_CODES) {
+    throw makeError_('INVALID_CODE', `Select at most ${MAX_BATCH_CODES} commodity codes.`);
+  }
+  return codes;
+}
+
+function readLatestRecordsFromCache_(codes, ttlSeconds) {
+  const records = new Map();
+  for (const code of codes) {
+    const record = getCachedValue_(`latest_${code}`, ttlSeconds, 'document');
+    if (record) records.set(code, record);
+  }
+  return records;
+}
+
+function getLatestRecords_(codes) {
+  let ttlSeconds = latestCacheTtl_();
+  let records = readLatestRecordsFromCache_(codes, ttlSeconds);
+  if (records.size === codes.length) return codes.map((code) => records.get(code));
+
+  let lock = cacheMissLock_();
+  let acquired = true;
+  if (lock) {
+    try {
+      acquired = lock.tryLock(5000);
+    } catch (error) {
+      lock = null;
+    }
+  }
+  if (!acquired) {
+    records = readLatestRecordsFromCache_(codes, latestCacheTtl_());
+    if (records.size === codes.length) return codes.map((code) => records.get(code));
+    throw makeError_(
+      'RETRY_LATER',
+      'Another sheet calculation is refreshing these values. Recalculate shortly.'
+    );
+  }
+
+  try {
+    ttlSeconds = latestCacheTtl_();
+    records = readLatestRecordsFromCache_(codes, ttlSeconds);
+    const missingCodes = codes.filter((code) => !records.has(code));
+    if (missingCodes.length > 0) {
+      const body = requestJson_(
+        `/prices/latest?by_code=${encodeURIComponent(missingCodes.join(','))}`,
+        requireApiKey_()
+      );
+      const missingSet = new Set(missingCodes);
+      const recordErrors = new Map();
+      for (const rawRecord of extractPriceRecords_(body, 'prices')) {
+        let rawCode;
+        try {
+          rawCode = normalizeCode_(rawRecord && (rawRecord.code || rawRecord.symbol), 'Price record code');
+        } catch (error) {
+          continue;
+        }
+        if (!missingSet.has(rawCode)) continue;
+        let record;
+        try {
+          record = validatePriceRecord_(rawRecord, 'Price record');
+        } catch (error) {
+          recordErrors.set(rawCode, error);
+          continue;
+        }
+        if (!missingSet.has(record.code)) continue;
+        records.set(record.code, record);
+        putCachedValue_(`latest_${record.code}`, record, latestCacheTtl_(), 'document');
+      }
+      for (const code of missingCodes) {
+        if (!records.has(code) && !recordErrors.has(code)) {
+          recordErrors.set(code, makeError_('NO_DATA', `No latest value was returned for ${code}.`));
+        }
+      }
+      return codes.map((code) => records.get(code) || { code, error: recordErrors.get(code) });
+    }
+    return codes.map((code) => records.get(code));
+  } finally {
+    if (lock) {
+      try {
+        lock.releaseLock();
+      } catch (error) {
+        // Releasing a transient service handle must not replace live data.
+      }
+    }
+  }
 }
 
 function testConnection() {
@@ -550,8 +1049,13 @@ function testConnection() {
     return { success: false, message: `Configure an API key first at ${SIGNUP_URL}.` };
   }
   try {
-    const body = requestJson_('/prices/latest?by_code=BRENT_CRUDE_USD', getApiKey_());
+    const body = requestJson_(
+      '/prices/latest?by_code=BRENT_CRUDE_USD',
+      getApiKey_(),
+      { bypassBlock: true }
+    );
     validatePriceRecord_(extractPriceRecords_(body, 'price')[0], 'Price record');
+    invalidateCacheGeneration_();
     return { success: true, message: 'Connection and response schema verified.' };
   } catch (error) {
     return { success: false, message: error.message };
@@ -560,20 +1064,20 @@ function testConnection() {
 
 function getUserInfo() {
   if (!getApiKey_()) {
-    return { tier: 'none', limit: null, used: null };
+    return { tier: 'none', limit: null, used: null, window: null };
   }
   try {
     const body = requestJson_('/users/me', getApiKey_());
     const data = body.data && typeof body.data === 'object' ? body.data : body;
     const tier = typeof data.tier === 'string' ? data.tier : (typeof data.plan === 'string' ? data.plan : null);
-    const limit = Number(data.request_limit);
-    const used = Number(data.requests_this_month);
-    if (!tier || !Number.isFinite(limit) || !Number.isFinite(used)) {
-      return { tier: 'unknown', limit: null, used: null };
-    }
-    return { tier, limit, used };
+    return {
+      tier: tier || 'unknown',
+      limit: null,
+      used: null,
+      window: null
+    };
   } catch (error) {
-    return { tier: 'unknown', limit: null, used: null, message: error.message };
+    return { tier: 'unknown', limit: null, used: null, window: null, message: error.message };
   }
 }
 
@@ -859,7 +1363,38 @@ function appendTruncationNote_(path, payload, table) {
  * @customfunction
  */
 function OILPRICE(commodityCode) {
-  return getLatestRecord_(commodityCode).price;
+  try {
+    return getLatestRecord_(commodityCode).price;
+  } catch (error) {
+    return formulaError_(error);
+  }
+}
+
+/**
+ * Fetches up to 25 commodity codes from a range in one request and spills a table.
+ * @param {Array} commodityCodes One-column range of OilPriceAPI commodity codes.
+ * @return {Array} Source-aware latest-price rows or a worksheet-readable error.
+ * @customfunction
+ */
+function OILPRICE_TABLE(commodityCodes) {
+  try {
+    const codes = normalizeCodeRange_(commodityCodes);
+    const records = getLatestRecords_(codes);
+    return [['Code', 'Price', 'Currency', 'Unit', 'Source', 'Source Timestamp']].concat(
+      records.map((record) => record.error
+        ? [record.code, formulaError_(record.error), '', '', '', '']
+        : [
+          record.code,
+          record.price,
+          record.currency,
+          record.unit,
+          record.source,
+          record.timestamp
+        ])
+    );
+  } catch (error) {
+    return formulaTableError_(error);
+  }
 }
 
 /**
@@ -889,9 +1424,14 @@ function OILPRICE_GET(path, query) {
   try {
     const normalizedPath = normalizeApiPath_(path);
     const normalizedQuery = normalizeApiQuery_(query);
-    const payload = requestJson_(
-      `${normalizedPath}${normalizedQuery ? `?${normalizedQuery}` : ''}`,
-      requireApiKey_()
+    const requestPath = `${normalizedPath}${normalizedQuery ? `?${normalizedQuery}` : ''}`;
+    const ttlSeconds = normalizedPath === '/v1/commodities'
+      ? CACHE_TTL_SECONDS.catalog
+      : CACHE_TTL_SECONDS.generic;
+    const payload = cachedRequestJson_(
+      `get_${stableCacheHash_(requestPath)}`,
+      requestPath,
+      ttlSeconds
     );
     return appendTruncationNote_(normalizedPath, payload, responseToTable_(payload));
   } catch (error) {
@@ -977,35 +1517,45 @@ function OILPRICE_INFO(commodityCode) {
  * @customfunction
  */
 function OILPRICE_HISTORY(commodityCode, days) {
-  const code = normalizeCode_(commodityCode, 'Commodity code');
-  const requestedDays = days === undefined || days === null || days === '' ? 30 : Number(days);
-  if (!Number.isInteger(requestedDays) || requestedDays < 1 || requestedDays > 365) {
-    throw new Error('History days must be an integer from 1 through 365.');
+  try {
+    const code = normalizeCode_(commodityCode, 'Commodity code');
+    const requestedDays = days === undefined || days === null || days === '' ? 30 : Number(days);
+    if (!Number.isInteger(requestedDays) || requestedDays < 1 || requestedDays > 365) {
+      throw makeError_('INVALID_INPUT', 'History days must be an integer from 1 through 365.');
+    }
+    let endpoint = 'past_year';
+    if (requestedDays <= 1) endpoint = 'past_day';
+    else if (requestedDays <= 7) endpoint = 'past_week';
+    else if (requestedDays <= 30) endpoint = 'past_month';
+
+    const cacheKey = `history_${code}_${endpoint}`;
+    const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.history, 'document');
+    if (cached) return cached;
+
+    return withCacheMissLock_(cacheKey, CACHE_TTL_SECONDS.history, () => {
+      const body = requestJson_(
+        `/prices/${endpoint}?by_code=${encodeURIComponent(code)}`,
+        requireApiKey_()
+      );
+      const records = extractPriceRecords_(body, 'historical price');
+      const result = records.map((record) => {
+        const normalized = validatePriceRecord_(record, 'Historical price record');
+        return [normalized.timestamp, normalized.price];
+      });
+      putCachedValue_(cacheKey, result, CACHE_TTL_SECONDS.history, 'document');
+      return result;
+    });
+  } catch (error) {
+    return formulaTableError_(error);
   }
-  const cacheKey = `history_${code}_${requestedDays}`;
-  const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.history);
-  if (cached) return cached;
-
-  let endpoint = 'past_year';
-  if (requestedDays <= 1) endpoint = 'past_day';
-  else if (requestedDays <= 7) endpoint = 'past_week';
-  else if (requestedDays <= 30) endpoint = 'past_month';
-
-  const body = requestJson_(
-    `/prices/${endpoint}?by_code=${encodeURIComponent(code)}`,
-    requireApiKey_()
-  );
-  const records = extractPriceRecords_(body, 'historical price');
-  const result = records.map((record) => {
-    const normalized = validatePriceRecord_(record, 'Historical price record');
-    return [normalized.timestamp, normalized.price];
-  });
-  putCachedValue_(cacheKey, result, CACHE_TTL_SECONDS.history);
-  return result;
 }
 
 function fetchExchangeRates() {
-  const body = requestJson_('/prices/latest?by_code=GBP_USD,EUR_USD', requireApiKey_());
+  const body = cachedRequestJson_(
+    'exchange_rates_gbp_eur_usd',
+    '/prices/latest?by_code=GBP_USD,EUR_USD',
+    CACHE_TTL_SECONDS.exchangeRates
+  );
   const records = extractPriceRecords_(body, 'exchange rates').map((record) => validatePriceRecord_(record, 'Exchange-rate record'));
   const gbp = records.find((record) => record.code === 'GBP_USD');
   const eur = records.find((record) => record.code === 'EUR_USD');
@@ -1041,14 +1591,18 @@ function heatContent_(commodityInfo) {
  * @customfunction
  */
 function OILPRICE_CONVERT(commodityCode) {
-  const code = normalizeCode_(commodityCode, 'Commodity code');
-  const commodityInfo = COMMODITY_MAP[code];
-  if (!commodityInfo) {
-    throw new Error('This code has no reference heat-content conversion mapping.');
+  try {
+    const code = normalizeCode_(commodityCode, 'Commodity code');
+    const commodityInfo = COMMODITY_MAP[code];
+    if (!commodityInfo) {
+      throw makeError_('INVALID_CODE', 'This code has no reference heat-content conversion mapping.');
+    }
+    const record = getLatestRecord_(code);
+    const rates = record.currency === 'USD' ? null : fetchExchangeRates();
+    return toUsd_(record.price, record.currency, rates) / heatContent_(commodityInfo);
+  } catch (error) {
+    return formulaError_(error);
   }
-  const record = getLatestRecord_(code);
-  const rates = record.currency === 'USD' ? null : fetchExchangeRates();
-  return toUsd_(record.price, record.currency, rates) / heatContent_(commodityInfo);
 }
 
 function convertToMBtu() {
@@ -1126,7 +1680,12 @@ function validateBunkerRecord_(record) {
 }
 
 function fetchBunkerRecords_(query) {
-  const body = requestJson_(`/prices/data-connector${query || ''}`, requireApiKey_());
+  const path = `/prices/data-connector${query || ''}`;
+  const body = cachedRequestJson_(
+    `bunker_${stableCacheHash_(path)}`,
+    path,
+    CACHE_TTL_SECONDS.bunker
+  );
   return extractPriceRecords_(body, 'bunker price').map(validateBunkerRecord_);
 }
 
@@ -1168,21 +1727,29 @@ function writeToDataConnectorSheet(prices) {
 
 /** @customfunction */
 function BUNKER_PRICE(port, fuelType) {
-  const normalizedPort = normalizeCode_(port, 'Port');
-  const normalizedFuel = normalizeCode_(fuelType, 'Fuel type');
-  const records = fetchBunkerRecords_(
-    `?port=${encodeURIComponent(normalizedPort)}&fuel_type=${encodeURIComponent(normalizedFuel)}`
-  );
-  return records[0].price;
+  try {
+    const normalizedPort = normalizeCode_(port, 'Port');
+    const normalizedFuel = normalizeCode_(fuelType, 'Fuel type');
+    const records = fetchBunkerRecords_(
+      `?port=${encodeURIComponent(normalizedPort)}&fuel_type=${encodeURIComponent(normalizedFuel)}`
+    );
+    return records[0].price;
+  } catch (error) {
+    return formulaError_(error);
+  }
 }
 
 /** @customfunction */
 function BUNKER_PORT_PRICES(port) {
-  const normalizedPort = normalizeCode_(port, 'Port');
-  const records = fetchBunkerRecords_(`?port=${encodeURIComponent(normalizedPort)}`);
-  return [['Fuel Type', 'Price', 'Currency', 'Unit', 'Source Timestamp']].concat(
-    records.map((record) => [record.fuelType, record.price, record.currency, record.unit, record.timestamp])
-  );
+  try {
+    const normalizedPort = normalizeCode_(port, 'Port');
+    const records = fetchBunkerRecords_(`?port=${encodeURIComponent(normalizedPort)}`);
+    return [['Fuel Type', 'Price', 'Currency', 'Unit', 'Source Timestamp']].concat(
+      records.map((record) => [record.fuelType, record.price, record.currency, record.unit, record.timestamp])
+    );
+  } catch (error) {
+    return formulaTableError_(error);
+  }
 }
 
 function validateFutureContract_(record, subject) {
@@ -1197,29 +1764,41 @@ function validateFutureContract_(record, subject) {
 
 /** @customfunction */
 function FUTURES_PRICE(contract) {
-  const code = normalizeCode_(contract, 'Contract code');
-  const cacheKey = `futures_price_${code}`;
-  const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.futures);
-  if (cached !== null) return cached;
-  const body = requestJson_(`/futures/latest?contract=${encodeURIComponent(code)}`, requireApiKey_());
-  const value = validateFutureContract_(extractDataArray_(body, 'contracts', 'futures contracts')[0], 'Futures contract').price;
-  putCachedValue_(cacheKey, value, CACHE_TTL_SECONDS.futures);
-  return value;
+  try {
+    const code = normalizeCode_(contract, 'Contract code');
+    const cacheKey = `futures_price_${code}`;
+    const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.futures, 'document');
+    if (cached !== null) return cached;
+    return withCacheMissLock_(cacheKey, CACHE_TTL_SECONDS.futures, () => {
+      const body = requestJson_(`/futures/latest?contract=${encodeURIComponent(code)}`, requireApiKey_());
+      const value = validateFutureContract_(extractDataArray_(body, 'contracts', 'futures contracts')[0], 'Futures contract').price;
+      putCachedValue_(cacheKey, value, CACHE_TTL_SECONDS.futures, 'document');
+      return value;
+    });
+  } catch (error) {
+    return formulaError_(error);
+  }
 }
 
 /** @customfunction */
 function FUTURES_CURVE(contract) {
-  const code = normalizeCode_(contract, 'Contract code');
-  const cacheKey = `futures_curve_${code}`;
-  const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.futures);
-  if (cached) return cached;
-  const body = requestJson_(`/futures/curve?contract=${encodeURIComponent(code)}`, requireApiKey_());
-  const contracts = extractDataArray_(body, 'contracts', 'futures contracts').map((record) => validateFutureContract_(record, 'Futures contract'));
-  const result = [['Month', 'Price', 'Change']].concat(
-    contracts.map((record) => [record.month, record.price, record.change])
-  );
-  putCachedValue_(cacheKey, result, CACHE_TTL_SECONDS.futures);
-  return result;
+  try {
+    const code = normalizeCode_(contract, 'Contract code');
+    const cacheKey = `futures_curve_${code}`;
+    const cached = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.futures, 'document');
+    if (cached) return cached;
+    return withCacheMissLock_(cacheKey, CACHE_TTL_SECONDS.futures, () => {
+      const body = requestJson_(`/futures/curve?contract=${encodeURIComponent(code)}`, requireApiKey_());
+      const contracts = extractDataArray_(body, 'contracts', 'futures contracts').map((record) => validateFutureContract_(record, 'Futures contract'));
+      const result = [['Month', 'Price', 'Change']].concat(
+        contracts.map((record) => [record.month, record.price, record.change])
+      );
+      putCachedValue_(cacheKey, result, CACHE_TTL_SECONDS.futures, 'document');
+      return result;
+    });
+  } catch (error) {
+    return formulaTableError_(error);
+  }
 }
 
 function showFuturesInfo() {
@@ -1247,27 +1826,36 @@ function validateRigData_(data) {
 
 /** @customfunction */
 function RIG_COUNT(type) {
-  const selectedType = String(type || 'total').toLowerCase();
-  const cacheKey = 'rig_count_data';
-  let rigData = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.rigCount);
-  if (!rigData) {
-    const body = requestJson_('/rig-counts/latest', requireApiKey_());
-    rigData = validateRigData_(body.data);
-    putCachedValue_(cacheKey, rigData, CACHE_TTL_SECONDS.rigCount);
+  try {
+    const selectedType = String(type || 'total').toLowerCase();
+    const cacheKey = 'rig_count_data';
+    let rigData = getCachedValue_(cacheKey, CACHE_TTL_SECONDS.rigCount, 'document');
+    if (!rigData) {
+      rigData = withCacheMissLock_(cacheKey, CACHE_TTL_SECONDS.rigCount, () => {
+        const body = requestJson_('/rig-counts/latest', requireApiKey_());
+        const validated = validateRigData_(body.data);
+        putCachedValue_(cacheKey, validated, CACHE_TTL_SECONDS.rigCount, 'document');
+        return validated;
+      });
+    }
+    if (selectedType === 'oil') return rigData.oil;
+    if (selectedType === 'gas') return rigData.gas;
+    if (selectedType === 'total') return rigData.total;
+    if (selectedType === 'all') {
+      return [
+        ['Type', 'Count'],
+        ['Oil', rigData.oil],
+        ['Gas', rigData.gas],
+        ['Total', rigData.total],
+        ['Source Date', rigData.date]
+      ];
+    }
+    throw makeError_('INVALID_INPUT', 'Rig count type must be oil, gas, total, or all.');
+  } catch (error) {
+    return String(type || 'total').toLowerCase() === 'all'
+      ? formulaTableError_(error)
+      : formulaError_(error);
   }
-  if (selectedType === 'oil') return rigData.oil;
-  if (selectedType === 'gas') return rigData.gas;
-  if (selectedType === 'total') return rigData.total;
-  if (selectedType === 'all') {
-    return [
-      ['Type', 'Count'],
-      ['Oil', rigData.oil],
-      ['Gas', rigData.gas],
-      ['Total', rigData.total],
-      ['Source Date', rigData.date]
-    ];
-  }
-  throw new Error('Rig count type must be oil, gas, total, or all.');
 }
 
 function showRigCountInfo() {

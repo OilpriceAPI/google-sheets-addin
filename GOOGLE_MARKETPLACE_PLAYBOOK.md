@@ -116,6 +116,11 @@ The production runtime therefore stores:
 - a compatibility copy in the spreadsheet owner's user properties, keyed by
   spreadsheet ID.
 
+The two prototype candidates also wrote an unscoped user-property key. Current
+packages intentionally ignore that value because it cannot be tied to its
+original spreadsheet. Prototype testers must save the key again in every
+spreadsheet they continue to use.
+
 The spreadsheet owner should configure the key. The OilPriceAPI account email
 does not need to match the Google account email. The sidebar must expose only
 configured/not-configured state; never return the stored credential to HTML,

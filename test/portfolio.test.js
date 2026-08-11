@@ -8,6 +8,9 @@ const ROOT = path.join(__dirname, "..");
 const products = JSON.parse(
   fs.readFileSync(path.join(ROOT, "portfolio", "products.json"), "utf8"),
 );
+const releases = JSON.parse(
+  fs.readFileSync(path.join(ROOT, "portfolio", "releases.json"), "utf8"),
+);
 
 function load(productId, overrides = {}) {
   const code = fs.readFileSync(
@@ -154,6 +157,15 @@ test("all five builds compile and expose unique product identities", () => {
   assert.equal(new Set(identities).size, 5);
 });
 
+test("release records do not claim superseded immutable packages are current", () => {
+  for (const product of products) {
+    const release = releases.products[product.id];
+    assert.equal(release.stage, "source-candidate");
+    assert.equal(release.version, null);
+    assert.equal(Number.isInteger(release.previousImmutableVersion), true);
+  }
+});
+
 test("crack-spread math covers 3-2-1 and 2-1-1 conventions", () => {
   const { context } = load("crack-spread-lab");
   assert.ok(Math.abs(context.calculateCrackSpread_(75, 2.5, 2.4, "3-2-1") - 28.6) < 1e-9);
@@ -247,8 +259,12 @@ test("API requests carry measurable product identity without sheet contents", ()
   const records = harness.context.latestPrices_(["WTI_USD"]);
   assert.equal(records[0].price, 75);
   assert.equal(
-    harness.requests[0].options.headers["X-OilPriceAPI-Client"],
+    harness.requests[0].options.headers["X-API-Client"],
     "crack-spread-lab/1.0.0",
+  );
+  assert.equal(
+    harness.requests[0].options.headers["X-OilPriceAPI-Client"],
+    undefined,
   );
   assert.equal(JSON.stringify(harness.requests[0]).includes("spreadsheet"), false);
   assert.equal(JSON.stringify(records).includes("fixture-key"), false);
@@ -278,6 +294,15 @@ test("API keys are spreadsheet-scoped and remain available to custom-function co
     harness.userValues.has("OILPRICEAPI_KEY:fixture-spreadsheet-id"),
     false,
   );
+});
+
+test("unscoped prototype keys cannot authorize another spreadsheet", () => {
+  const harness = load("crack-spread-lab");
+  harness.userValues.set("OILPRICEAPI_KEY", "prototype-key");
+  harness.setActiveSpreadsheetId("sheet-a");
+  assert.equal(harness.context.getApiKey_(), null);
+  harness.setActiveSpreadsheetId("sheet-b");
+  assert.equal(harness.context.getApiKey_(), null);
 });
 
 test("API failures produce actionable recovery messages and reject silent bad data", () => {

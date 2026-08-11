@@ -6,23 +6,31 @@ test installation, screenshots, and submission require the publisher account.
 
 ## Current release gate
 
-- Runtime version: `1.2.2`
+- Public runtime version: `1.2.2`
+- Repository release candidate: `1.3.1`
 - Production Apps Script ID:
   `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`
-- Current immutable Apps Script version: `11`
+- Latest immutable Apps Script version: `12` (runtime `1.3.0`, created by
+  workflow run `31489545156` on 2026-08-11). Version 12 failed the subsequent
+  user-scoped cache-isolation review and was never published. The Marketplace
+  remains on version `11` (runtime `1.2.2`).
 - GitHub production release workflow:
   `https://github.com/OilpriceAPI/google-sheets-addin/actions/workflows/apps-script-release.yml`
-- Marketplace status: version 9 submission rejected/paused pending OAuth
-  approval; after approval update it to version 11 and resubmit once
+  Note: versions 9-11 were cut locally with `npm run deploy:version`; version
+  12 was cut by the governed workflow above.
+- Marketplace status: **published** at
+  `https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434`.
+  The public listing points to immutable Apps Script version 11 (`1.2.2`).
+  Do not select the `1.3.1` candidate until its exact immutable version passes
+  an installed Marketplace formula smoke.
 - Runtime push/version and local deployment checks: complete
 - Marketplace review receipt and a real 1280x800 screenshot: complete
 - Public homepage, privacy policy, and terms deployment: complete
-- OAuth branding is verified; Data Access verification was submitted July 30,
-  2026 with `https://youtu.be/FakNSmBddhE` and is under review
-- Canonical remaining-work issue:
-  `https://github.com/OilpriceAPI/google-sheets-addin/issues/20`
+- OAuth verification was submitted July 30, 2026 with reviewer video
+  `https://youtu.be/FakNSmBddhE`.
 
-Do not claim Marketplace availability until Google publishes the listing.
+Do not claim that a new runtime is public until App Configuration selects its
+smoke-proven immutable version.
 
 ## 1. Choose the publisher and Cloud project
 
@@ -187,7 +195,7 @@ screenshots until they have been reviewed for secrets and customer data.
 After the smoke passes against the exact pushed source:
 
 ```bash
-npm run deploy:version -- "OilPriceAPI for Google Sheets 1.2.2"
+npm run deploy:version -- "OilPriceAPI for Google Sheets 1.3.1 cache-isolation recovery"
 npm run deploy:list
 ```
 
@@ -245,27 +253,33 @@ Verify locally before upload:
 npm run verify:assets
 ```
 
-Save the listing as a draft while OAuth verification or screenshot review is
-pending.
+For a copy update, save a draft and preserve the existing public version until
+the replacement is approved and smoke-tested.
 
 ## 11. Submit and post-publication smoke
 
-1. Submit OAuth verification if required.
-2. Submit the public Marketplace listing for review.
-3. Track the Marketplace SDK publication status and review email sent to
-   `support@oilpriceapi.com`.
-4. After approval, install the public listing using a separate clean account.
-5. Repeat the customer-critical smoke against the published version.
+1. Push the exact reviewed release and create an immutable Apps Script version.
+2. Install that version with a non-customer test account before changing the
+   public Marketplace configuration.
+3. Run key save/test, `OILPRICE_PRICE`, `OILPRICE_TABLE`, quota recovery, and
+   key deletion checks.
+4. Select the proven version in Marketplace App Configuration.
+5. Repeat the customer-critical smoke through the public listing.
 6. Review Apps Script execution logs for new errors, retries, unexpected
    authorization failures, and noisy request patterns.
-7. Only then update public marketing copy to say the add-on is available from
-   the Google Workspace Marketplace and add the real listing URL.
+7. Record the exact version, account type, formulas, timestamps, and redacted
+   screenshots in the release issue.
 
 ## Updating an approved release
 
 Push and smoke-test the new code, create a new Apps Script version, then update
 the version number on the Marketplace SDK App Configuration page. Do not create
 a new app integration or change the Script ID.
+
+Runtime `1.3.1` retires unscoped API keys saved by releases before Apps Script
+version 6. Those legacy values cannot be attributed to a particular spreadsheet
+and are therefore not safe to use. Affected users must open each intended
+spreadsheet and save the key again from **OilPriceAPI > Configure API Key**.
 
 If scopes change, update all three scope lists and complete any required OAuth
 reverification before publishing the new version.

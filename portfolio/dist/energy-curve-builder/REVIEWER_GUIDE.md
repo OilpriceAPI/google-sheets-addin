@@ -31,7 +31,8 @@ Status: pre-submission. Evidence that depends on a real installed Marketplace dr
 ## Evidence to attach
 
 - Apps Script ID: `1q3YQIyE17nv4uNLQV7Pdw3DwKFu8Yrp9Uwylxw6WPmWhwyKzv4xZZDLZ`
-- Immutable Apps Script version: `1`
+- Immutable Apps Script version: `New immutable version required`
+- Previous immutable version (superseded): `1`
 - Marketplace draft install: Pending the separate Cloud project and draft integration.
 - Clean test spreadsheet URL: Provide privately after installed-draft smoke.
 - OAuth demo video URL: Record after the exact OAuth branding and scopes are configured.

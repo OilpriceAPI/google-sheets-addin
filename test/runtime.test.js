@@ -43,10 +43,14 @@ function bunkerRecord(overrides = {}) {
   };
 }
 
-function createHarness() {
-  const documentPropertyValues = new Map();
-  const userPropertyValues = new Map();
-  const cache = new Map();
+function createHarness(shared = {}) {
+  const documentPropertyValues = shared.documentPropertyValues || new Map();
+  const userPropertyValues = shared.userPropertyValues || new Map();
+  const documentCache = shared.documentCache || new Map();
+  let userCache = shared.userCache || new Map();
+  const cachePuts = [];
+  let lockAvailable = true;
+  let lockHeld = false;
   const responses = [];
   const requests = [];
   let activeSpreadsheetId = "sheet-a";
@@ -58,17 +62,37 @@ function createHarness() {
   });
   const documentProperties = propertyStore(documentPropertyValues);
   const userProperties = propertyStore(userPropertyValues);
-  const userCache = {
-    get: (key) => cache.get(key) || null,
-    put: (key, value) => cache.set(key, value),
-    remove: (key) => cache.delete(key),
-  };
+  const cacheStore = (scope, values) => ({
+    get: (key) => values().get(key) || null,
+    put: (key, value, ttlSeconds) => {
+      values().set(key, value);
+      cachePuts.push({ scope, key, ttlSeconds });
+    },
+    remove: (key) => values().delete(key),
+  });
+  const documentCacheStore = cacheStore("document", () => documentCache);
+  const userCacheStore = cacheStore("user", () => userCache);
   const context = {
-    CacheService: { getUserCache: () => userCache },
+    CacheService: {
+      getDocumentCache: () => documentCacheStore,
+      getUserCache: () => userCacheStore,
+    },
     Date,
     Error,
     HtmlService: {},
     JSON,
+    LockService: {
+      getDocumentLock: () => ({
+        tryLock: () => {
+          if (!lockAvailable || lockHeld) return false;
+          lockHeld = true;
+          return true;
+        },
+        releaseLock: () => {
+          lockHeld = false;
+        },
+      }),
+    },
     Math,
     Number,
     PropertiesService: {
@@ -106,8 +130,10 @@ function createHarness() {
   new vm.Script(CODE, { filename: "Code.gs" }).runInContext(context);
 
   return {
-    cache,
+    cache: documentCache,
+    cachePuts,
     context,
+    documentCache,
     documentPropertyValues,
     queue(status, body, headers = {}) {
       responses.push({ status, body, headers });
@@ -116,8 +142,17 @@ function createHarness() {
       responses.push(error);
     },
     requests,
+    setLockAvailable(value) {
+      lockAvailable = value;
+    },
     setActiveSpreadsheetId(value) {
       activeSpreadsheetId = value;
+    },
+    switchUserCache() {
+      userCache = new Map();
+    },
+    get userCache() {
+      return userCache;
     },
     userPropertyValues,
   };
@@ -290,6 +325,153 @@ test("spreadsheet-scoped owner fallback never crosses into another spreadsheet",
   );
 });
 
+test("user-scoped fallback credentials never share cached responses", () => {
+  const shared = {
+    documentCache: new Map(),
+    documentPropertyValues: new Map(),
+  };
+  const firstUser = createHarness(shared);
+  firstUser.context.PropertiesService.getDocumentProperties = () => null;
+  firstUser.userPropertyValues.set("OILPRICEAPI_KEY:sheet-a", "first-user-key");
+  firstUser.queue(200, latestBody({ price: 81.78 }));
+  assert.equal(firstUser.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+
+  const secondUser = createHarness(shared);
+  secondUser.context.PropertiesService.getDocumentProperties = () => null;
+  secondUser.userPropertyValues.set("OILPRICEAPI_KEY:sheet-a", "second-user-key");
+  secondUser.queue(200, latestBody({ price: 92.35 }));
+  assert.equal(secondUser.context.OILPRICE_PRICE("WTI_USD"), 92.35);
+  assert.equal(secondUser.requests.length, 1);
+  assert.equal(
+    secondUser.requests[0].options.headers.Authorization,
+    "Token second-user-key",
+  );
+  assert.ok(firstUser.cachePuts.every((entry) => entry.scope === "user"));
+  assert.ok(secondUser.cachePuts.every((entry) => entry.scope === "user"));
+  assert.equal(
+    JSON.stringify([
+      ...shared.documentCache.entries(),
+      ...firstUser.userCache.entries(),
+      ...secondUser.userCache.entries(),
+    ]).includes("user-key"),
+    false,
+  );
+});
+
+test("user-scoped fallback credentials never share entitlement blocks", () => {
+  const shared = {
+    documentCache: new Map(),
+    documentPropertyValues: new Map(),
+  };
+  const firstUser = createHarness(shared);
+  firstUser.context.PropertiesService.getDocumentProperties = () => null;
+  firstUser.userPropertyValues.set("OILPRICEAPI_KEY:sheet-a", "first-user-key");
+  firstUser.queue(403, JSON.stringify({ error: "upgrade required" }));
+  assert.match(
+    firstUser.context.OILPRICE_HISTORY("WTI_USD", 30)[0][0],
+    /^#UPGRADE_REQUIRED$/,
+  );
+
+  const secondUser = createHarness(shared);
+  secondUser.context.PropertiesService.getDocumentProperties = () => null;
+  secondUser.userPropertyValues.set("OILPRICEAPI_KEY:sheet-a", "second-user-key");
+  secondUser.queue(
+    200,
+    historyBody([
+      {
+        code: "WTI_USD",
+        price: 92.35,
+        currency: "USD",
+        unit: "barrel",
+        source: "market_reporting",
+        created_at: "2026-08-11T12:00:00.000Z",
+      },
+    ]),
+  );
+  assert.deepEqual(
+    JSON.parse(
+      JSON.stringify(secondUser.context.OILPRICE_HISTORY("WTI_USD", 30)),
+    ),
+    [["2026-08-11T12:00:00.000Z", 92.35]],
+  );
+  assert.equal(secondUser.requests.length, 1);
+});
+
+test("one user's fallback response cache is isolated between spreadsheets", () => {
+  const shared = {
+    documentCache: new Map(),
+    documentPropertyValues: new Map(),
+    userCache: new Map(),
+    userPropertyValues: new Map([
+      ["OILPRICEAPI_KEY:sheet-a", "sheet-a-key"],
+      ["OILPRICEAPI_KEY:sheet-b", "sheet-b-key"],
+    ]),
+  };
+  const firstSheet = createHarness(shared);
+  firstSheet.context.PropertiesService.getDocumentProperties = () => null;
+  firstSheet.queue(200, latestBody({ price: 81.78 }));
+  assert.equal(firstSheet.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+
+  const secondSheet = createHarness(shared);
+  secondSheet.setActiveSpreadsheetId("sheet-b");
+  secondSheet.context.PropertiesService.getDocumentProperties = () => null;
+  secondSheet.queue(200, latestBody({ price: 92.35 }));
+  assert.equal(secondSheet.context.OILPRICE_PRICE("WTI_USD"), 92.35);
+  assert.equal(secondSheet.requests.length, 1);
+  assert.equal(
+    secondSheet.requests[0].options.headers.Authorization,
+    "Token sheet-b-key",
+  );
+  assert.ok(
+    [...shared.userCache.keys()].every(
+      (key) => !key.includes("sheet-a") && !key.includes("sheet-b"),
+    ),
+  );
+});
+
+test("one user's fallback entitlement blocks are isolated between spreadsheets", () => {
+  const shared = {
+    documentCache: new Map(),
+    documentPropertyValues: new Map(),
+    userCache: new Map(),
+    userPropertyValues: new Map([
+      ["OILPRICEAPI_KEY:sheet-a", "sheet-a-key"],
+      ["OILPRICEAPI_KEY:sheet-b", "sheet-b-key"],
+    ]),
+  };
+  const firstSheet = createHarness(shared);
+  firstSheet.context.PropertiesService.getDocumentProperties = () => null;
+  firstSheet.queue(403, JSON.stringify({ error: "upgrade required" }));
+  assert.match(
+    firstSheet.context.OILPRICE_HISTORY("WTI_USD", 30)[0][0],
+    /^#UPGRADE_REQUIRED$/,
+  );
+
+  const secondSheet = createHarness(shared);
+  secondSheet.setActiveSpreadsheetId("sheet-b");
+  secondSheet.context.PropertiesService.getDocumentProperties = () => null;
+  secondSheet.queue(
+    200,
+    historyBody([
+      {
+        code: "WTI_USD",
+        price: 92.35,
+        currency: "USD",
+        unit: "barrel",
+        source: "market_reporting",
+        created_at: "2026-08-11T12:00:00.000Z",
+      },
+    ]),
+  );
+  assert.deepEqual(
+    JSON.parse(
+      JSON.stringify(secondSheet.context.OILPRICE_HISTORY("WTI_USD", 30)),
+    ),
+    [["2026-08-11T12:00:00.000Z", 92.35]],
+  );
+  assert.equal(secondSheet.requests.length, 1);
+});
+
 test("deleting a key removes both document and spreadsheet-scoped owner stores", () => {
   const harness = createHarness();
   harness.context.saveApiKey("test-key-not-a-secret");
@@ -302,16 +484,16 @@ test("deleting a key removes both document and spreadsheet-scoped owner stores",
   );
 });
 
-test("legacy user-property key remains readable until it is saved per spreadsheet", () => {
+test("an unscoped legacy user-property key cannot authorize another spreadsheet", () => {
   const harness = createHarness();
   harness.userPropertyValues.set("OILPRICEAPI_KEY", "legacy-key");
-  harness.queue(200, latestBody());
+  harness.setActiveSpreadsheetId("sheet-b");
 
-  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
-  assert.equal(
-    harness.requests[0].options.headers.Authorization,
-    "Token legacy-key",
+  assert.match(
+    harness.context.OILPRICE_PRICE("WTI_USD"),
+    /^#AUTH_REQUIRED:/,
   );
+  assert.equal(harness.requests.length, 0);
 
   harness.context.saveApiKey("spreadsheet-key");
   assert.equal(harness.userPropertyValues.has("OILPRICEAPI_KEY"), false);
@@ -323,8 +505,8 @@ test("legacy user-property key remains readable until it is saved per spreadshee
 
 test("OILPRICE rejects a missing key with a recovery action", () => {
   const harness = createHarness();
-  assert.throws(
-    () => harness.context.OILPRICE("WTI_USD"),
+  assert.match(
+    harness.context.OILPRICE("WTI_USD"),
     /configure an API key/i,
   );
 });
@@ -338,7 +520,7 @@ for (const [status, pattern] of [
     const harness = createHarness();
     configure(harness);
     harness.queue(status, JSON.stringify({ error: "fixture" }));
-    assert.throws(() => harness.context.OILPRICE("WTI_USD"), pattern);
+    assert.match(harness.context.OILPRICE("WTI_USD"), pattern);
   });
 }
 
@@ -346,19 +528,19 @@ test("OILPRICE maps Apps Script fetch failures to timeout recovery", () => {
   const harness = createHarness();
   configure(harness);
   harness.queueError(new Error("Socket timeout"));
-  assert.throws(() => harness.context.OILPRICE("WTI_USD"), /timed out/i);
+  assert.match(harness.context.OILPRICE("WTI_USD"), /timed out/i);
 });
 
 test("OILPRICE rejects malformed JSON and an empty successful response", () => {
   const malformed = createHarness();
   configure(malformed);
   malformed.queue(200, "not-json");
-  assert.throws(() => malformed.context.OILPRICE("WTI_USD"), /malformed JSON/i);
+  assert.match(malformed.context.OILPRICE("WTI_USD"), /malformed JSON/i);
 
   const empty = createHarness();
   configure(empty);
   empty.queue(200, JSON.stringify({ status: "success", data: { prices: [] } }));
-  assert.throws(() => empty.context.OILPRICE("WTI_USD"), /no usable price/i);
+  assert.match(empty.context.OILPRICE("WTI_USD"), /no usable price/i);
 });
 
 test("OILPRICE rejects successful records with missing source fields", () => {
@@ -373,7 +555,7 @@ test("OILPRICE rejects successful records with missing source fields", () => {
     const record = JSON.parse(latestBody()).data;
     delete record[field];
     harness.queue(200, JSON.stringify({ status: "success", data: record }));
-    assert.throws(() => harness.context.OILPRICE("WTI_USD"), pattern);
+    assert.match(harness.context.OILPRICE("WTI_USD"), pattern);
   }
 });
 
@@ -389,6 +571,494 @@ test("OILPRICE supports the production flat record and caches its source data", 
     harness.requests[0].options.headers.Authorization,
     "Token test-key-not-a-secret",
   );
+});
+
+test("a CacheService outage degrades to a live response", () => {
+  const harness = createHarness();
+  configure(harness);
+  const unavailable = () => {
+    throw new Error("Cache service unavailable");
+  };
+  harness.context.CacheService.getDocumentCache = unavailable;
+  harness.context.CacheService.getUserCache = unavailable;
+  harness.queue(200, latestBody());
+
+  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+  assert.equal(harness.requests.length, 1);
+});
+
+for (const operation of ["get", "put", "remove"]) {
+  test(`a cache ${operation} failure does not replace live API data`, () => {
+    const harness = createHarness();
+    configure(harness);
+    const cache = {
+      get: () => null,
+      put: () => {},
+      remove: () => {},
+    };
+    cache[operation] = () => {
+      throw new Error(`Cache ${operation} unavailable`);
+    };
+    harness.context.CacheService.getDocumentCache = () => cache;
+    harness.context.CacheService.getUserCache = () => cache;
+    harness.queue(200, latestBody());
+
+    assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+    assert.equal(harness.requests.length, 1);
+  });
+}
+
+for (const operation of ["getDocumentLock", "tryLock", "releaseLock"]) {
+  test(`a lock ${operation} failure degrades to an unlocked live response`, () => {
+    const harness = createHarness();
+    configure(harness);
+    harness.context.LockService.getDocumentLock = () => ({
+      tryLock: () => true,
+      releaseLock: () => {},
+    });
+    if (operation === "getDocumentLock") {
+      harness.context.LockService.getDocumentLock = () => {
+        throw new Error("Lock service unavailable");
+      };
+    } else {
+      harness.context.LockService.getDocumentLock = () => ({
+        tryLock: () => {
+          if (operation === "tryLock") throw new Error("Lock service unavailable");
+          return true;
+        },
+        releaseLock: () => {
+          if (operation === "releaseLock") throw new Error("Lock service unavailable");
+        },
+      });
+    }
+    harness.queue(200, latestBody());
+
+    assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+    assert.equal(harness.requests.length, 1);
+  });
+}
+
+test("quota failures are cached and repeated formulas do not refetch", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(
+    402,
+    JSON.stringify({
+      error_code: "PAYMENT_REQUIRED",
+      message: "You have used all requests for the current limit window",
+      upgrade_url: "https://www.oilpriceapi.com/pricing",
+    }),
+    { "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 3600) },
+  );
+
+  const first = harness.context.OILPRICE_PRICE("WTI_USD");
+  const second = harness.context.OILPRICE_PRICE("WTI_USD");
+
+  assert.match(first, /^#UPGRADE_REQUIRED:.*pricing/i);
+  assert.equal(second, first);
+  assert.equal(harness.requests.length, 1);
+});
+
+test("a connection check bypasses a cached quota wall and clears it after upgrade", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(402, JSON.stringify({ error_code: "PAYMENT_REQUIRED" }));
+  assert.match(
+    harness.context.OILPRICE_PRICE("WTI_USD"),
+    /^#UPGRADE_REQUIRED:/,
+  );
+
+  harness.queue(200, latestBody());
+  assert.equal(harness.context.testConnection().success, true);
+  harness.queue(200, latestBody());
+  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+  assert.equal(harness.requests.length, 3);
+});
+
+test("a successful connection check invalidates every cached entitlement block", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(403, JSON.stringify({ error: "upgrade required" }));
+  assert.match(
+    harness.context.OILPRICE_HISTORY("WTI_USD", 30)[0][0],
+    /^#UPGRADE_REQUIRED$/,
+  );
+
+  harness.queue(200, latestBody());
+  assert.equal(harness.context.testConnection().success, true);
+  harness.queue(
+    200,
+    historyBody([
+      {
+        code: "WTI_USD",
+        price: 82.45,
+        currency: "USD",
+        unit: "barrel",
+        source: "market_reporting",
+        created_at: "2026-08-11T12:05:00.000Z",
+      },
+    ]),
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.context.OILPRICE_HISTORY("WTI_USD", 30))),
+    [["2026-08-11T12:05:00.000Z", 82.45]],
+  );
+  assert.equal(harness.requests.length, 3);
+});
+
+test("a fallback-user connection check invalidates that user's cached blocks", () => {
+  const harness = createHarness();
+  harness.context.PropertiesService.getDocumentProperties = () => null;
+  harness.userPropertyValues.set("OILPRICEAPI_KEY:sheet-a", "fallback-user-key");
+  harness.userPropertyValues.set("OILPRICEAPI_CACHE_GENERATION:sheet-a", "100");
+  harness.queue(403, JSON.stringify({ error: "upgrade required" }));
+  assert.match(
+    harness.context.OILPRICE_HISTORY("WTI_USD", 30)[0][0],
+    /^#UPGRADE_REQUIRED$/,
+  );
+
+  harness.queue(200, latestBody());
+  assert.equal(harness.context.testConnection().success, true);
+  assert.notEqual(
+    harness.userPropertyValues.get("OILPRICEAPI_CACHE_GENERATION:sheet-a"),
+    "100",
+  );
+  harness.queue(
+    200,
+    historyBody([
+      {
+        code: "WTI_USD",
+        price: 83.1,
+        currency: "USD",
+        unit: "barrel",
+        source: "market_reporting",
+        created_at: "2026-08-11T12:10:00.000Z",
+      },
+    ]),
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.context.OILPRICE_HISTORY("WTI_USD", 30))),
+    [["2026-08-11T12:10:00.000Z", 83.1]],
+  );
+  assert.equal(harness.requests.length, 3);
+});
+
+test("a fallback-user connection check reports cache invalidation failure", () => {
+  const harness = createHarness();
+  harness.context.PropertiesService.getDocumentProperties = () => null;
+  harness.userPropertyValues.set("OILPRICEAPI_KEY:sheet-a", "fallback-user-key");
+  harness.context.PropertiesService.getUserProperties = () => ({
+    getProperty: (key) => harness.userPropertyValues.get(key) || null,
+    setProperty: () => {
+      throw new Error("Properties service unavailable");
+    },
+    deleteProperty: (key) => harness.userPropertyValues.delete(key),
+  });
+  harness.queue(200, latestBody());
+
+  const result = harness.context.testConnection();
+  assert.equal(result.success, false);
+  assert.match(result.message, /cached worksheet state.*test connection/i);
+});
+
+test("a document connection check fails closed when its generation write fails", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(403, JSON.stringify({ error: "upgrade required" }));
+  assert.match(
+    harness.context.OILPRICE_HISTORY("WTI_USD", 30)[0][0],
+    /^#UPGRADE_REQUIRED$/,
+  );
+
+  harness.context.PropertiesService.getDocumentProperties = () => ({
+    getProperty: (key) => harness.documentPropertyValues.get(key) || null,
+    setProperty: () => {
+      throw new Error("Document properties unavailable");
+    },
+    deleteProperty: (key) => harness.documentPropertyValues.delete(key),
+  });
+  harness.queue(200, latestBody());
+
+  const result = harness.context.testConnection();
+  assert.equal(result.success, false);
+  assert.match(result.message, /cached worksheet state.*test connection/i);
+});
+
+test("all worksheet formulas return readable errors instead of raw exceptions", () => {
+  const harness = createHarness();
+  const scalarCalls = [
+    () => harness.context.OILPRICE("WTI_USD"),
+    () => harness.context.OILPRICE_CONVERT("WTI_USD"),
+    () => harness.context.BUNKER_PRICE("SINGAPORE", "VLSFO"),
+    () => harness.context.FUTURES_PRICE("BZ"),
+    () => harness.context.RIG_COUNT("oil"),
+  ];
+  const tableCalls = [
+    () => harness.context.OILPRICE_HISTORY("WTI_USD", 30),
+    () => harness.context.BUNKER_PORT_PRICES("SINGAPORE"),
+    () => harness.context.FUTURES_CURVE("BZ"),
+  ];
+
+  for (const call of scalarCalls) {
+    assert.match(call(), /^#AUTH_REQUIRED:/);
+  }
+  for (const call of tableCalls) {
+    assert.match(call()[0][0], /^#AUTH_REQUIRED$/);
+  }
+  assert.equal(harness.requests.length, 0);
+});
+
+test("OILPRICE_TABLE batches a range and primes the shared latest cache", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(
+    200,
+    historyBody([
+      {
+        code: "WTI_USD",
+        price: 81.78,
+        currency: "USD",
+        unit: "barrel",
+        source: "market_reporting",
+        created_at: "2026-07-19T14:10:50.373Z",
+      },
+      {
+        code: "BRENT_CRUDE_USD",
+        price: 85.45,
+        currency: "USD",
+        unit: "barrel",
+        source: "market_reporting",
+        created_at: "2026-07-19T14:10:50.373Z",
+      },
+    ]),
+    { "X-RateLimit-Tier": "free" },
+  );
+
+  assert.deepEqual(
+    JSON.parse(
+      JSON.stringify(
+        harness.context.OILPRICE_TABLE([
+          ["wti_usd"],
+          ["BRENT_CRUDE_USD"],
+          ["WTI_USD"],
+          [""],
+        ]),
+      ),
+    ),
+    [
+      ["Code", "Price", "Currency", "Unit", "Source", "Source Timestamp"],
+      ["WTI_USD", 81.78, "USD", "barrel", "market_reporting", "2026-07-19T14:10:50.373Z"],
+      ["BRENT_CRUDE_USD", 85.45, "USD", "barrel", "market_reporting", "2026-07-19T14:10:50.373Z"],
+    ],
+  );
+  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+  assert.equal(harness.requests.length, 1);
+  assert.match(harness.requests[0].url, /by_code=WTI_USD%2CBRENT_CRUDE_USD$/);
+});
+
+test("OILPRICE_TABLE preserves valid rows when one batch record is malformed", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(
+    200,
+    historyBody([
+      {
+        code: "WTI_USD",
+        price: "not-a-number",
+        currency: "USD",
+        unit: "barrel",
+        created_at: "2026-07-19T14:10:50.373Z",
+      },
+      {
+        code: "BRENT_CRUDE_USD",
+        price: 85.45,
+        currency: "USD",
+        unit: "barrel",
+        source: "market_reporting",
+        created_at: "2026-07-19T14:10:50.373Z",
+      },
+    ]),
+  );
+
+  const table = JSON.parse(
+    JSON.stringify(
+      harness.context.OILPRICE_TABLE([["WTI_USD"], ["BRENT_CRUDE_USD"]]),
+    ),
+  );
+  assert.equal(table[1][0], "WTI_USD");
+  assert.match(table[1][1], /^#INVALID_RESPONSE:/);
+  assert.deepEqual(table[2], [
+    "BRENT_CRUDE_USD",
+    85.45,
+    "USD",
+    "barrel",
+    "market_reporting",
+    "2026-07-19T14:10:50.373Z",
+  ]);
+  assert.equal(harness.context.OILPRICE_PRICE("BRENT_CRUDE_USD"), 85.45);
+  assert.equal(harness.requests.length, 1);
+});
+
+test("history cache reuses the endpoint bucket for equivalent lookbacks", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(
+    200,
+    historyBody([
+      {
+        code: "WTI_USD",
+        price: 81.78,
+        currency: "USD",
+        unit: "barrel",
+        created_at: "2026-07-19T14:10:50.373Z",
+      },
+    ]),
+  );
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.context.OILPRICE_HISTORY("WTI_USD", 8))),
+    [["2026-07-19T14:10:50.373Z", 81.78]],
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.context.OILPRICE_HISTORY("WTI_USD", 15))),
+    [["2026-07-19T14:10:50.373Z", 81.78]],
+  );
+  assert.equal(harness.requests.length, 1);
+});
+
+test("request block keys include a bounded path prefix as well as a hash", () => {
+  const harness = createHarness();
+  const keys = harness.context.requestBlockKeys_(
+    "/prices/latest?by_code=WTI_USD",
+  );
+
+  assert.match(keys.endpoint, /request_block_endpoint__v1_prices_latest_[a-z0-9]+$/);
+  assert.match(
+    keys.request,
+    /request_block_request__prices_latest_by_code_WTI_USD_[a-z0-9]+$/,
+  );
+  assert.ok(keys.request.length < 180);
+});
+
+test("cache digest pairs preserve their namespace boundary", () => {
+  const harness = createHarness();
+  assert.equal(harness.context.combineCacheDigests_("ab", "cde"), "ab_cde");
+  assert.notEqual(
+    harness.context.combineCacheDigests_("ab", "cde"),
+    harness.context.combineCacheDigests_("abc", "de"),
+  );
+});
+
+test("latest values use the document cache across spreadsheet viewers", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(200, latestBody(), { "X-RateLimit-Tier": "developer" });
+
+  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+  harness.switchUserCache();
+  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+  assert.equal(harness.requests.length, 1);
+});
+
+test("cold-cache contention fails readably without issuing a duplicate request", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.setLockAvailable(false);
+
+  assert.match(
+    harness.context.OILPRICE_PRICE("WTI_USD"),
+    /^#RETRY_LATER:/,
+  );
+  assert.equal(harness.requests.length, 0);
+});
+
+for (const [tier, expectedTtl] of [
+  ["free", 3600],
+  ["developer", 300],
+  ["enterprise", 60],
+]) {
+  test(`latest cache TTL follows the ${tier} response tier`, () => {
+    const harness = createHarness();
+    configure(harness);
+    harness.queue(200, latestBody(), { "X-RateLimit-Tier": tier });
+
+    assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+    const latestPut = harness.cachePuts.find((entry) =>
+      entry.key.includes("latest_WTI_USD"),
+    );
+    assert.equal(latestPut.scope, "document");
+    assert.equal(latestPut.ttlSeconds, expectedTtl);
+  });
+}
+
+test("saving a replacement key invalidates terminal errors immediately", () => {
+  const harness = createHarness();
+  harness.context.saveApiKey("first-test-key");
+  harness.queue(401, JSON.stringify({ error: "invalid key" }));
+  assert.match(
+    harness.context.OILPRICE_PRICE("WTI_USD"),
+    /^#AUTH_INVALID:/,
+  );
+
+  harness.context.saveApiKey("replacement-test-key");
+  harness.queue(200, latestBody());
+  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+  assert.equal(harness.requests.length, 2);
+});
+
+test("custom-function endpoint families read through document-scoped caches", () => {
+  const generic = createHarness();
+  configure(generic);
+  generic.queue(200, JSON.stringify({ data: { ok: true } }));
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(generic.context.OILPRICE_GET("/v1/status", ""))),
+    [["Field", "Value"], ["ok", true]],
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(generic.context.OILPRICE_GET("/v1/status", ""))),
+    [["Field", "Value"], ["ok", true]],
+  );
+  assert.equal(generic.requests.length, 1);
+
+  const bunker = createHarness();
+  configure(bunker);
+  bunker.queue(200, bunkerBody([bunkerRecord()]));
+  assert.equal(bunker.context.BUNKER_PRICE("SINGAPORE", "VLSFO"), 612.5);
+  assert.equal(bunker.context.BUNKER_PRICE("SINGAPORE", "VLSFO"), 612.5);
+  assert.equal(bunker.requests.length, 1);
+
+  const futures = createHarness();
+  configure(futures);
+  futures.queue(
+    200,
+    JSON.stringify({ data: { contracts: [{ month: "2026-09", price: 84.2, change: 0.4 }] } }),
+  );
+  assert.equal(futures.context.FUTURES_PRICE("BZ"), 84.2);
+  assert.equal(futures.context.FUTURES_PRICE("BZ"), 84.2);
+  assert.equal(futures.requests.length, 1);
+
+  const rigs = createHarness();
+  configure(rigs);
+  rigs.queue(
+    200,
+    JSON.stringify({ data: { oil: 410, gas: 125, total: 535, date: "2026-08-07" } }),
+  );
+  assert.equal(rigs.context.RIG_COUNT("oil"), 410);
+  assert.equal(rigs.context.RIG_COUNT("total"), 535);
+  assert.equal(rigs.requests.length, 1);
+});
+
+test("cache keys and payloads never contain an API key", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(200, latestBody());
+  assert.equal(harness.context.OILPRICE_PRICE("WTI_USD"), 81.78);
+
+  const cachedText = JSON.stringify([
+    ...harness.documentCache.entries(),
+    ...harness.userCache.entries(),
+  ]);
+  assert.equal(cachedText.includes("test-key-not-a-secret"), false);
 });
 
 test("Excel-equivalent price, status, unit, and info formulas preserve source context", () => {
@@ -695,10 +1365,13 @@ test("a stale cache envelope is discarded before formula refresh", () => {
   harness.queue(200, latestBody({ price: 80 }));
   assert.equal(harness.context.OILPRICE("WTI_USD"), 80);
 
-  const cacheKey = [...harness.cache.keys()][0];
-  const envelope = JSON.parse(harness.cache.get(cacheKey));
+  const activeCache = harness.documentCache.size
+    ? harness.documentCache
+    : harness.userCache;
+  const cacheKey = [...activeCache.keys()][0];
+  const envelope = JSON.parse(activeCache.get(cacheKey));
   envelope.cachedAt = Date.now() - 301000;
-  harness.cache.set(cacheKey, JSON.stringify(envelope));
+  activeCache.set(cacheKey, JSON.stringify(envelope));
   harness.queue(200, latestBody({ price: 82 }));
 
   assert.equal(harness.context.OILPRICE("WTI_USD"), 82);
@@ -733,8 +1406,8 @@ test("historical formula retains API timestamps and rejects missing timestamps",
       { code: "WTI_USD", price: 80, currency: "USD", unit: "barrel" },
     ]),
   );
-  assert.throws(
-    () => invalid.context.OILPRICE_HISTORY("WTI_USD", 1),
+  assert.match(
+    invalid.context.OILPRICE_HISTORY("WTI_USD", 1)[0][1],
     /timestamp/i,
   );
 });
@@ -782,7 +1455,7 @@ test("bunker records reject empty, malformed, and incomplete successful response
 
 for (const [status, pattern] of [
   [401, /invalid or revoked API key/i],
-  [402, /cannot access the requested dataset/i],
+  [402, /pricing/i],
   [403, /cannot access the requested dataset/i],
   [429, /rate or quota limit/i],
 ]) {
@@ -790,8 +1463,8 @@ for (const [status, pattern] of [
     const harness = createHarness();
     configure(harness);
     harness.queue(status, JSON.stringify({ error: "fixture" }));
-    assert.throws(
-      () => harness.context.BUNKER_PRICE("SINGAPORE", "VLSFO"),
+    assert.match(
+      harness.context.BUNKER_PRICE("SINGAPORE", "VLSFO"),
       pattern,
     );
   });
@@ -801,8 +1474,8 @@ test("BUNKER_PRICE maps Apps Script fetch failures to timeout recovery", () => {
   const harness = createHarness();
   configure(harness);
   harness.queueError(new Error("Socket timeout"));
-  assert.throws(
-    () => harness.context.BUNKER_PRICE("SINGAPORE", "VLSFO"),
+  assert.match(
+    harness.context.BUNKER_PRICE("SINGAPORE", "VLSFO"),
     /timed out/i,
   );
 });
@@ -853,8 +1526,8 @@ test("bunker formulas normalize and encode filters and return source-aware value
 test("bunker inputs reject unsupported filter characters before fetch", () => {
   const harness = createHarness();
   configure(harness);
-  assert.throws(
-    () => harness.context.BUNKER_PRICE("Singapore & Johor", "VLSFO"),
+  assert.match(
+    harness.context.BUNKER_PRICE("Singapore & Johor", "VLSFO"),
     /unsupported characters/i,
   );
   assert.equal(harness.requests.length, 0);
@@ -1055,4 +1728,25 @@ test("user info does not invent a tier or request limit", () => {
   assert.equal(info.tier, "unknown");
   assert.equal(info.limit, null);
   assert.equal(info.used, null);
+});
+
+test("user info does not infer a quota window from legacy monthly fields", () => {
+  const harness = createHarness();
+  configure(harness);
+  harness.queue(
+    200,
+    JSON.stringify({
+      data: {
+        tier: "free",
+        request_limit: 50,
+        requests_this_month: 5,
+      },
+    }),
+  );
+
+  const info = harness.context.getUserInfo();
+  assert.equal(info.tier, "free");
+  assert.equal(info.limit, null);
+  assert.equal(info.used, null);
+  assert.equal(info.window, null);
 });

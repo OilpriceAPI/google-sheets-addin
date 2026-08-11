@@ -18,7 +18,7 @@ Target Cloud project ID: `oilpriceapi-crack-spread`
 ## Google account work — prepare, but do not submit yet
 
 - [x] Create or confirm the standalone Apps Script project
-- [x] Push the exact validated package and create an immutable version
+- [ ] Push the exact validated package and create an immutable version
 - [ ] Create the separate standard Google Cloud project `oilpriceapi-crack-spread`
 - [ ] Enable Apps Script API and Google Workspace Marketplace SDK
 - [ ] Link the Apps Script project to the standard Cloud project

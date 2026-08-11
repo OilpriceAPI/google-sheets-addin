@@ -19,21 +19,23 @@ clickable external links when the channel has advanced features enabled:
 - `https://support.google.com/youtube/answer/12948449?hl=en`
 - `https://support.google.com/youtube/answer/13748639?hl=en`
 
-## Publish timing
+## Release sequence
 
-Two useful videos can be produced without making premature Marketplace claims.
+The original add-on is publicly available in Google Workspace Marketplace.
+Keep the two video concepts distinct so workflow discovery and installation
+intent remain measurable.
 
-### Video 1: publish before Marketplace approval
+### Video 1: API workflow tutorial
 
 Focus on the underlying workflow and OilPriceAPI:
 
 > How to Pull WTI and Brent Prices into Google Sheets™ | OilPriceAPI Tutorial
 
 Show a clean spreadsheet, API setup, live values, units, source timestamps, and
-freshness. State accurately that Marketplace publication is pending. Use a
-signup or integration-page CTA, not an “Install now” CTA.
+freshness. Use a signup or integration-page CTA so this video measures the
+underlying data workflow rather than add-on installation.
 
-### Video 2: publish after Marketplace approval
+### Video 2: Marketplace installation tutorial
 
 Focus on discovery and installation:
 
@@ -123,10 +125,10 @@ with OilPriceAPI. This tutorial shows live price formulas, units, source
 timestamps, freshness metadata, and a multi-commodity table.
 
 Start here:
-https://www.oilpriceapi.com/integrations/google-sheets?utm_source=youtube&utm_medium=organic_video&utm_campaign=google_sheets_addon&utm_content=overview_demo
+https://www.oilpriceapi.com/integrations/google-sheets?utm_source=youtube&utm_medium=organic_video&utm_campaign=google_sheets_addon&utm_content=<video-id>_overview_demo
 
 Create an OilPriceAPI account:
-https://www.oilpriceapi.com/auth/signup?utm_source=youtube&utm_medium=organic_video&utm_campaign=google_sheets_addon&utm_content=signup_cta
+https://www.oilpriceapi.com/auth/signup?utm_source=youtube&utm_medium=organic_video&utm_campaign=google_sheets_addon&utm_content=<video-id>_signup_cta
 
 Documentation:
 https://docs.oilpriceapi.com
@@ -181,7 +183,7 @@ Use a unique `utm_content` for each CTA and video, such as:
 Do not put email addresses, Google account IDs, spreadsheet contents, API keys,
 or other user data into analytics events.
 
-## 30-day launch test
+## 90-day launch test
 
 1. Publish one outcome-led tutorial.
 2. Add the tracked integration-page link to the first two description lines.
@@ -189,10 +191,11 @@ or other user data into analytics events.
 4. Add the integration-page link to the channel profile.
 5. Publish one short excerpt that points to the long-form related video; Shorts
    description URLs are not clickable.
-6. Review YouTube search terms and audience retention after 7 and 30 days.
-7. Compare YouTube-referred signup and activation rates with Marketplace and
+6. Review YouTube search terms and audience retention after 7 days.
+7. Treat Day 30 as the interim review and Day 90 as the final success decision.
+8. Compare YouTube-referred signup and activation rates with Marketplace and
    organic-search traffic.
-8. Produce the next portfolio-product video only if the first video produces
+9. Produce the next portfolio-product video only if the first video produces
    qualified visits or activation signal, not merely views.
 
 Success threshold for the first experiment:

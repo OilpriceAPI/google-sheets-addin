@@ -37,7 +37,13 @@ for (const product of products) {
   assert.match(product.cloudProjectId, /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/);
   assert.match(product.brandColor, /^#[0-9A-F]{6}$/);
   assert.equal(release.scriptId.length >= 20, true, `${product.id} script ID`);
-  assert.equal(Number.isInteger(release.version), true, `${product.id} immutable version`);
+  assert.equal(release.stage, "source-candidate", `${product.id} release stage`);
+  assert.equal(release.version, null, `${product.id} current immutable version`);
+  assert.equal(
+    Number.isInteger(release.previousImmutableVersion),
+    true,
+    `${product.id} historical immutable version`,
+  );
   assert.equal(release.cloudProjectId, product.cloudProjectId);
   assert.doesNotMatch(product.name, /\bGoogle\b|\bSheets\b/i, `${product.id} title must not use a Google trademark`);
   assert.ok(product.sheets.length >= 3, `${product.id} must create at least three distinct sheets`);
@@ -47,6 +53,7 @@ for (const product of products) {
     path.join(dist, "MARKETPLACE_LISTING.md"),
     "utf8",
   );
+  const sidebar = fs.readFileSync(path.join(dist, "Sidebar.html"), "utf8");
   const manifest = JSON.parse(
     fs.readFileSync(path.join(dist, "appsscript.json"), "utf8"),
   );
@@ -60,7 +67,8 @@ for (const product of products) {
   );
   new vm.Script(code, { filename: `${product.id}/Code.gs` });
   assert.match(code, new RegExp(`function ${product.builder}\\(`));
-  assert.match(code, new RegExp(`X-OilPriceAPI-Client`));
+  assert.match(code, new RegExp(`X-API-Client`));
+  assert.doesNotMatch(code, /X-OilPriceAPI-Client/);
   assert.match(code, new RegExp(product.activationHeader));
   assert.doesNotMatch(code, /getActiveUser|getEmail|userinfo\.email|userinfo\.profile/);
   assert.deepEqual(manifest.oauthScopes, expectedScopes);
@@ -74,9 +82,12 @@ for (const product of products) {
   assert.match(listing, /https:\/\/www\.oilpriceapi\.com\/pricing/);
   assert.doesNotMatch(listing, /\breal[ -]?time\b/i);
   assert.match(reviewerGuide, new RegExp(release.scriptId));
-  assert.match(
-    reviewerGuide,
-    new RegExp(`Immutable Apps Script version: \\\`${release.version}\\\``),
+  assert.match(sidebar, /Prototype testers must save the key again/i);
+  assert.match(reviewerGuide, /Immutable Apps Script version: `New immutable version required`/);
+  assert.ok(
+    reviewerGuide.includes(
+      `Previous immutable version (superseded): \`${release.previousImmutableVersion}\``,
+    ),
   );
   assert.match(submissionChecklist, new RegExp(product.cloudProjectId));
   assert.doesNotMatch(

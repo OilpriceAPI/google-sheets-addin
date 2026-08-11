@@ -4,56 +4,35 @@ This packet is for the production Google Cloud project
 `oilpriceapi-sheets-addon` (`991152473434`) and the original
 `OilPriceAPI for Google Sheets™` add-on.
 
-## Status as of July 30, 2026
+## Status as of August 11, 2026
 
-Completed release evidence:
+Customer-visible Google evidence:
 
-- Add-on PR 19 merged as
-  `799f49f46059340ed332431f5c7ac87f5c91a695`.
-- All 54 runtime, recovery, disclosure, deployment-package, asset, portfolio,
-  and secret-scan checks passed for the current release.
-- The exact merged runtime was pushed to the production Apps Script project.
-- Immutable Apps Script version 11 was created for runtime `1.2.2`, merge
-  `3747fef2d09474c5b610bfa7154c7134a16e6a9f`.
-- Website PR 1461 merged as
-  `c3acb510680992538315781fb0ce3dcec335bf20`.
-- Production deployment
-  `https://github.com/OilpriceAPI/website-clean/actions/runs/30434284989`
-  completed successfully, including production and money-page smoke checks
-  and a Cloudflare purge.
-- Cache-busted checks returned HTTP 200 without a cross-domain redirect for
-  the homepage, privacy policy, and terms. The responses contained the
-  expected scope, Limited Use, and current-formula disclosures.
-- DigitalOcean deployment `65aaf4e7-df6a-44aa-a89b-de796963e442` is ACTIVE.
-  Its first 500 runtime log lines contained no matched errors, warnings,
-  retries, timeouts, or 5xx responses.
+- The listing is publicly available at
+  `https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434`.
+- The public Marketplace configuration points to immutable Apps Script version
+  **11**, runtime `1.2.2`.
+- OAuth verification was submitted on July 30, 2026 for Cloud project
+  `991152473434`. The reviewer-accessible continuous demonstration is
+  `https://youtu.be/FakNSmBddhE`.
+- A Marketplace draft install previously proved custom-function registration,
+  spreadsheet-scoped key save, connection/schema validation,
+  `OILPRICE_PRICE("WTI_USD")`, `OILPRICE_CODES()`, and sidebar batch fetch.
+- Public availability was independently rechecked unauthenticated on August
+  10, 2026; the canonical URL returned the OilPriceAPI listing while a bogus
+  application ID returned Google error 400.
 
-Current Google state:
+Historical release evidence remains relevant: PR #22 supplied the
+custom-function credential-context fix, immutable version 11 was cut after it,
+and the three functional scopes below were used for submission. Earlier draft
+versions 9 and 10 are superseded.
 
-- Google rejected/paused the Marketplace version 9 submission pending OAuth
-  approval and instructed the publisher not to resubmit Marketplace yet.
-- Apps Script version 11 is the prepared release and must replace version 9 in
-  Marketplace App Configuration after OAuth approval.
-- OAuth publishing status is **In production**.
-- OAuth branding is **verified and shown to users**.
-- OAuth data access was **submitted July 30, 2026 and is under review**.
-- Google reports that Homepage requirements are under review.
-- Reviewer video: `https://youtu.be/FakNSmBddhE`.
-- Google confirmed that Trust and Safety received the form, expects the first
-  email within 3–5 days, and says full review can take up to 4–6 weeks.
-- Submission receipt:
-  `https://github.com/OilpriceAPI/google-sheets-addin/issues/20#issuecomment-5131610169`.
-
-Remaining owner-session work:
-
-1. Monitor the project contact email and answer Trust and Safety in the same
-   case.
-2. Keep the reviewer video, reviewer key, branding, URLs, and scope list stable
-   during review.
-3. After OAuth approval, update Marketplace App Configuration from version 9
-   to version 11 and resubmit once.
-4. Preserve OAuth approval and Marketplace resubmission receipts in issue 20:
-   `https://github.com/OilpriceAPI/google-sheets-addin/issues/20`.
+Private Cloud-console fields are not inferred from public availability. The
+customer release gate is the public listing plus an installed-add-on formula
+smoke. Immutable version 12 (runtime `1.3.0`) failed cache-isolation review and
+was never published. Runtime `1.3.1` must therefore remain a release candidate until it is
+merged, pushed, cut as a new immutable Apps Script version, installed through
+Marketplace, and smoke-tested before App Configuration is updated.
 
 ## Branding values
 
@@ -84,11 +63,11 @@ property in Google Search Console.
 The Apps Script manifest, OAuth Data Access page, and Workspace Marketplace SDK
 must contain the same three functional scopes:
 
-| Scope | Reviewer justification |
-| --- | --- |
-| `https://www.googleapis.com/auth/spreadsheets.currentonly` | The add-on reads only user-selected inputs required for an invoked feature and writes requested formulas, market-data tables, formatting, and conversion outputs in the spreadsheet where the add-on is open. It does not request broad Google Drive access. |
-| `https://www.googleapis.com/auth/script.external_request` | The add-on sends authenticated HTTPS GET requests to `api.oilpriceapi.com` for market data explicitly requested by the user. Requests contain the user's OilPriceAPI key and reviewed market identifiers or filters; general spreadsheet contents are not transferred. |
-| `https://www.googleapis.com/auth/script.container.ui` | The add-on displays its menu, API-key sidebar, price-selection dialog, informational alerts, diagnostics, and recovery actions inside the current spreadsheet. |
+| Scope                                                      | Reviewer justification                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `https://www.googleapis.com/auth/spreadsheets.currentonly` | The add-on reads only user-selected inputs required for an invoked feature and writes requested formulas, market-data tables, formatting, and conversion outputs in the spreadsheet where the add-on is open. It does not request broad Google Drive access.           |
+| `https://www.googleapis.com/auth/script.external_request`  | The add-on sends authenticated HTTPS GET requests to `api.oilpriceapi.com` for market data explicitly requested by the user. Requests contain the user's OilPriceAPI key and reviewed market identifiers or filters; general spreadsheet contents are not transferred. |
+| `https://www.googleapis.com/auth/script.container.ui`      | The add-on displays its menu, API-key sidebar, price-selection dialog, informational alerts, diagnostics, and recovery actions inside the current spreadsheet.                                                                                                         |
 
 Google may display default `userinfo.email` and `userinfo.profile` scopes. The
 add-on does not use those identity scopes for product behavior and does not
@@ -127,20 +106,14 @@ The completed reviewer video is `https://youtu.be/FakNSmBddhE`. Keep it
 Unlisted. Create a different sanitized public acquisition video using
 `YOUTUBE_PROMOTION.md`.
 
-## Submission order
+## Future release order
 
-1. Deploy the public homepage, privacy policy, and terms above.
-2. Confirm all three URLs return `200` without authentication or redirects to
-   another domain.
-3. Confirm Search Console ownership for `oilpriceapi.com`.
-4. Push and smoke the exact reviewed Apps Script source.
-5. Create a new immutable Apps Script version.
-6. Record and upload the demo video with link visibility enabled for the
-   Google review team.
-7. In Google Auth Platform, verify and publish branding first, then submit Data
-   Access verification with the scope justifications and demo link.
-8. When Google requires OAuth approval first, wait for it before entering the
-   new Apps Script version and resubmitting Marketplace.
+1. Validate and merge the exact reviewed source.
+2. Push it to the production Apps Script project and create a new immutable
+   version without changing the public Marketplace configuration.
+3. Install and smoke that candidate with a non-customer account.
+4. Select the candidate in Marketplace App Configuration only after key,
+   formula, batching, quota-recovery, and key-deletion checks pass.
+5. Repeat the smoke through the public listing and review Apps Script logs.
 
-Do not claim that the add-on is publicly installable until Google approves and
-publishes the Marketplace listing.
+Do not claim that a new runtime is public before its selected-version smoke.

@@ -36,7 +36,7 @@ Detailed description:
 ## Measurement
 
 - Marketplace discovery: Google Workspace Marketplace SDK impressions and install events.
-- Activation: first successful OilPriceAPI request carrying `X-OilPriceAPI-Client: bunker-voyage-planner/<version>`.
+- Activation: first successful OilPriceAPI request carrying `X-API-Client: bunker-voyage-planner/<version>`.
 - Signup: `utm_source=workspace_marketplace&utm_medium=addon&utm_campaign=bunker_voyage_planner`.
 - North-star rate: activated workbooks per 100 listing views.
 

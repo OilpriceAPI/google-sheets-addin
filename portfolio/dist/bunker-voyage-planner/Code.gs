@@ -128,9 +128,9 @@ function getApiKey_() {
     : null;
   if (spreadsheetKey) return spreadsheetKey;
 
-  // Migration fallback for the two prototype releases. Saving again removes
-  // this unscoped value.
-  return userProperties.getProperty(OPA_KEY_PROPERTY);
+  // Prototype releases used an unscoped user property. It cannot be tied to a
+  // source spreadsheet safely, so require the user to save the key again.
+  return null;
 }
 
 function requireApiKey_() {
@@ -209,7 +209,7 @@ function requestJson_(path, apiKey) {
       headers: {
         Authorization: `Token ${apiKey}`,
         Accept: 'application/json',
-        'X-OilPriceAPI-Client': `${OPA_PRODUCT.activationHeader}/${OPA_VERSION}`
+        'X-API-Client': `${OPA_PRODUCT.activationHeader}/${OPA_VERSION}`
       },
       muteHttpExceptions: true
     });

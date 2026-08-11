@@ -43,7 +43,7 @@ views**, segmented by product.
 
 1. Listing discovery and install counts come from Marketplace SDK Analytics.
 2. A successful product build makes an authenticated OilPriceAPI request with
-   `X-OilPriceAPI-Client: <product-id>/<version>`. API logs can therefore count
+   `X-API-Client: <product-id>/<version>`. API logs can therefore count
    first data activation without collecting spreadsheet contents.
 3. Sidebar signup links use:
    `utm_source=workspace_marketplace`,
@@ -91,7 +91,8 @@ Run clasp from the selected product directory so its `.claspignore` exposes only
 5. Gas Spread Monitor
 
 The first two have the clearest non-overlapping search intent and quickest
-time-to-value. Their Apps Script candidates are already versioned. Prepare the
+time-to-value. Their prior immutable versions are superseded; cut and remotely
+verify new versions from the exact merged source before preparing the
 Cloud/OAuth/Marketplace draft for Crack Spread Lab first, measure activation,
 then promote the strongest funnel before submitting the next listing.
 

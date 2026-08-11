@@ -36,7 +36,7 @@ Detailed description:
 ## Measurement
 
 - Marketplace discovery: Google Workspace Marketplace SDK impressions and install events.
-- Activation: first successful OilPriceAPI request carrying `X-OilPriceAPI-Client: energy-curve-builder/<version>`.
+- Activation: first successful OilPriceAPI request carrying `X-API-Client: energy-curve-builder/<version>`.
 - Signup: `utm_source=workspace_marketplace&utm_medium=addon&utm_campaign=energy_curve_builder`.
 - North-star rate: activated workbooks per 100 listing views.
 

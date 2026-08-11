@@ -36,7 +36,7 @@ Detailed description:
 ## Measurement
 
 - Marketplace discovery: Google Workspace Marketplace SDK impressions and install events.
-- Activation: first successful OilPriceAPI request carrying `X-OilPriceAPI-Client: gas-spread-monitor/<version>`.
+- Activation: first successful OilPriceAPI request carrying `X-API-Client: gas-spread-monitor/<version>`.
 - Signup: `utm_source=workspace_marketplace&utm_medium=addon&utm_campaign=gas_spread_monitor`.
 - North-star rate: activated workbooks per 100 listing views.
 

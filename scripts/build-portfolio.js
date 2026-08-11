@@ -65,7 +65,7 @@ Detailed description:
 ## Measurement
 
 - Marketplace discovery: Google Workspace Marketplace SDK impressions and install events.
-- Activation: first successful OilPriceAPI request carrying \`X-OilPriceAPI-Client: ${product.activationHeader}/<version>\`.
+- Activation: first successful OilPriceAPI request carrying \`X-API-Client: ${product.activationHeader}/<version>\`.
 - Signup: \`utm_source=workspace_marketplace&utm_medium=addon&utm_campaign=${product.signupCampaign}\`.
 - North-star rate: activated workbooks per 100 listing views.
 
@@ -139,7 +139,8 @@ Status: pre-submission. Evidence that depends on a real installed Marketplace dr
 ## Evidence to attach
 
 - Apps Script ID: \`${release.scriptId || "Not created"}\`
-- Immutable Apps Script version: \`${release.version || "Not created"}\`
+- Immutable Apps Script version: \`${release.version || "New immutable version required"}\`
+- Previous immutable version (superseded): \`${release.previousImmutableVersion || "None"}\`
 - Marketplace draft install: Pending the separate Cloud project and draft integration.
 - Clean test spreadsheet URL: Provide privately after installed-draft smoke.
 - OAuth demo video URL: Record after the exact OAuth branding and scopes are configured.

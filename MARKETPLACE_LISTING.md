@@ -1,12 +1,12 @@
 # Google Workspace Marketplace Listing
 
-Status: the Marketplace draft was resubmitted July 29, 2026 and Google then
-rejected/paused review pending OAuth approval. The submitted Marketplace
-configuration references Apps Script version 9. The reviewed 1.2.2 runtime is
-published separately as immutable Apps Script version 11 and must replace
-version 9 after OAuth approval. OAuth branding is verified and Data Access
-verification was submitted July 30. Do not resubmit Marketplace or claim
-availability until Google approves OAuth and publishes the listing.
+Status: **publicly available** at
+`https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434`.
+
+Public Marketplace Apps Script version: `11` (runtime `1.2.2`). Runtime
+`1.3.1` remains a release candidate until an immutable Apps Script version is
+cut, smoke-tested through an installed Marketplace add-on, and selected in App
+Configuration.
 
 ## App details
 
@@ -28,7 +28,7 @@ Detailed description:
 > request the latest available value, its currency and unit, source timestamp,
 > freshness state, or an allowlisted API table.
 >
-> Core formulas include OILPRICE_PRICE, OILPRICE_INFO, OILPRICE_STATUS,
+> Core formulas include OILPRICE_PRICE, OILPRICE_TABLE, OILPRICE_INFO, OILPRICE_STATUS,
 > OILPRICE_UNIT, OILPRICE_CODES, and OILPRICE_GET. Existing OILPRICE,
 > OILPRICE_HISTORY, futures, bunker-price, rig-count, and reference conversion
 > formulas remain available.
@@ -63,48 +63,50 @@ Detailed description:
 
 The Apps Script manifest declares these three functional scopes:
 
-| Scope | Justification |
-| --- | --- |
+| Scope                                                      | Justification                                                                                                                       |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `https://www.googleapis.com/auth/spreadsheets.currentonly` | Read and write only the spreadsheet where the user runs the add-on, including inserting formulas and writing requested data tables. |
-| `https://www.googleapis.com/auth/script.external_request` | Send authenticated HTTPS GET requests to `api.oilpriceapi.com` for data explicitly requested by the user. |
-| `https://www.googleapis.com/auth/script.container.ui` | Display the add-on menu, API-key sidebar, help alerts, and data-fetch dialog inside the spreadsheet where the user runs the add-on. |
+| `https://www.googleapis.com/auth/script.external_request`  | Send authenticated HTTPS GET requests to `api.oilpriceapi.com` for data explicitly requested by the user.                           |
+| `https://www.googleapis.com/auth/script.container.ui`      | Display the add-on menu, API-key sidebar, help alerts, and data-fetch dialog inside the spreadsheet where the user runs the add-on. |
 
 The submitted OAuth/Marketplace configuration also displays Google's mandatory
 `userinfo.email` and `userinfo.profile` defaults. The add-on does not use those
 identity defaults for product behavior and does not request Drive-wide access.
 
-## Submission receipt
+## Current publication receipt
 
 - Google Cloud project: `oilpriceapi-sheets-addon` (`991152473434`)
-- Marketplace draft Apps Script version: `9`
-- Latest reviewed immutable Apps Script version: `11`
+- Public listing:
+  `https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434`
+- Public Marketplace Apps Script version: `11`
+- Latest immutable Apps Script version: `12`
 - Runtime release represented by version 11: `1.2.2`
+- Version 12 represented runtime `1.3.0`, failed the user-scoped cache-isolation
+  review, and was never published. Runtime `1.3.1` is its replacement candidate.
+- Superseded: version 10 (`1.2.1`), cut before the PR #22 credential fix
 - Integration: Google Sheets Editor add-on
 - Install modes: individual and administrator
 - Regions: all regions
-- Review state: **Rejected/on hold pending OAuth approval**
+- Review state: **Published — independently verified August 10, 2026**
 - Rejection email received: **July 27, 2026**
-- Marketplace instruction: **Do not resubmit until OAuth verification is
-  approved.**
+- Historical Google Cloud receipt: **“The draft is in review and can't be edited.”**
 - Verification-page production deployment:
   `https://github.com/OilpriceAPI/website-clean/actions/runs/30434284989`
-- OAuth branding state: **verified and shown to users**
-- OAuth submission state: **submitted July 30, 2026 — under review**
-- OAuth reviewer video: `https://youtu.be/FakNSmBddhE`
-- Canonical remaining-work issue:
-  `https://github.com/OilpriceAPI/google-sheets-addin/issues/20`
+- OAuth verification was submitted July 30, 2026 with the reviewer-accessible
+  demonstration `https://youtu.be/FakNSmBddhE`; the later public listing is the
+  customer-visible approval evidence.
 
-The OAuth consent screen is **In production**. The manifest, submitted OAuth
-configuration, and Marketplace configuration use the three functional scopes
-above; Google's default `userinfo.email` and `userinfo.profile` scopes remain
-in place. The public homepage, privacy policy, and terms were corrected and
-deployed from website PR 1461.
+The OAuth consent screen is **In production**. The manifest and published
+submission use the three functional scopes above. Google's default `userinfo.email` and
+`userinfo.profile` scopes remain in place. The public homepage, privacy policy,
+and terms were corrected and deployed from website PR 1461. Cache-busted
+production checks returned HTTP 200 from the canonical domain and found the
+expected disclosure text on all three pages.
 
-Google Trust and Safety confirmed receipt of the OAuth form on July 30. Keep
-the reviewer video and reviewer key active and leave branding, URLs, and scopes
-unchanged during review. After OAuth approval, update Marketplace from Apps
-Script version 9 to version 11, resubmit once, and preserve the new receipt in
-issue 20.
+Do not infer any private Cloud-console field beyond the receipts above. The
+public listing and installed-add-on smoke are the release gates for customer
+availability; future runtime revisions still require their own immutable
+version and installed formula smoke.
 
 ## Graphic assets
 

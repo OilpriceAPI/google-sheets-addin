@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
+const { parse } = require("yaml");
 
 const ROOT = path.join(__dirname, "..");
 const PUBLIC_FILES = [
@@ -131,13 +132,66 @@ test("legacy credential migration requires an explicit spreadsheet reconfigure",
   assert.match(readme, /unscoped keys[\s\S]{0,260}save the key again/i);
 });
 
-test("validation and production release workflows block on dependency audit", () => {
-  for (const workflow of ["validate.yml", "apps-script-release.yml"]) {
-    const contents = fs.readFileSync(
-      path.join(ROOT, ".github", "workflows", workflow),
-      "utf8",
+test("hosted workflows use hardened Node 24 release gates", () => {
+  for (const workflow of [
+    "validate.yml",
+    "github-pages.yml",
+    "apps-script-release.yml",
+  ]) {
+    const document = parse(
+      fs.readFileSync(
+        path.join(ROOT, ".github", "workflows", workflow),
+        "utf8",
+      ),
     );
-    assert.match(contents, /npm audit --audit-level=moderate/);
+    const steps = Object.values(document.jobs).flatMap((job) => job.steps);
+    const gateJobName = workflow === "apps-script-release.yml"
+      ? "release"
+      : "validate";
+    const gateSteps = document.jobs[gateJobName].steps;
+    const checkouts = steps.filter((step) =>
+      step.uses?.startsWith("actions/checkout@"),
+    );
+    const setupNode = steps.filter((step) =>
+      step.uses?.startsWith("actions/setup-node@"),
+    );
+
+    assert.equal(document.permissions.contents, "read");
+    assert.ok(checkouts.length > 0);
+    for (const checkout of checkouts) {
+      assert.equal(checkout.uses, "actions/checkout@v6");
+      assert.equal(checkout.with?.["persist-credentials"], false);
+    }
+    assert.ok(setupNode.length > 0);
+    for (const setup of setupNode) {
+      assert.equal(setup.uses, "actions/setup-node@v6");
+      assert.equal(setup.with?.["node-version"], "24");
+    }
+    const auditIndex = gateSteps.findIndex(
+      (step) => step.run === "npm audit --audit-level=moderate",
+    );
+    const validationIndex = gateSteps.findIndex(
+      (step) => step.run === "npm run validate",
+    );
+    assert.ok(auditIndex >= 0);
+    assert.ok(validationIndex > auditIndex);
+
+    if (workflow === "github-pages.yml") {
+      assert.equal(document.jobs.deploy.needs, "validate");
+      const pageActions = document.jobs.deploy.steps
+        .map((step) => step.uses)
+        .filter((uses) =>
+          /actions\/(?:configure-pages|upload-pages-artifact|deploy-pages)@/.test(
+            uses || "",
+          ),
+        )
+        .sort();
+      assert.deepEqual(pageActions, [
+        "actions/configure-pages@v6",
+        "actions/deploy-pages@v5",
+        "actions/upload-pages-artifact@v5",
+      ]);
+    }
   }
 
   const results = fs.readFileSync(path.join(ROOT, "TEST_RESULTS.md"), "utf8");

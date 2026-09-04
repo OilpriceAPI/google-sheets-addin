@@ -7,6 +7,7 @@
 
 const API_BASE_URL = 'https://api.oilpriceapi.com/v1';
 const ADDON_VERSION = '1.3.1';
+const API_CLIENT = 'oilpriceapi-google-sheets';
 const KEY_PROPERTY = 'OILPRICEAPI_KEY';
 const LAST_DIAGNOSTIC_PROPERTY = 'OILPRICEAPI_LAST_DIAGNOSTIC';
 const CACHE_GENERATION_PROPERTY = 'OILPRICEAPI_CACHE_GENERATION';
@@ -594,7 +595,7 @@ function requestJson_(path, apiKey, options) {
         // 'sdk-google-sheets'). Without this, every call from this add-on lands as
         // client_type 'unknown' and the add-on is invisible in adoption reporting.
         // 285 users were sitting in 'unknown' when this was found. (#6167)
-        'X-API-Client': 'oilpriceapi-google-sheets',
+        'X-Api-Client': API_CLIENT,
         'X-Client-Version': ADDON_VERSION
       },
       muteHttpExceptions: true

@@ -90,6 +90,13 @@ npm test
 npm run validate
 ```
 
+These audit, generated-asset, runtime, source-claim, secret, portfolio, and
+deployment-package gates also run every Monday in GitHub Actions so newly
+disclosed dependency issues are found when the repository is otherwise quiet.
+This package has no production npm dependencies: clasp, image generation, and
+validation packages are development/release tooling, while the shipped runtime
+is the reviewed Apps Script deployment package.
+
 The validation suite covers formula parity, credential lifecycle, negative
 auth/entitlement/quota paths, response-shape drift, stale cache, source
 metadata, Data Connector filtering and sheet output, endpoint/query

@@ -294,6 +294,11 @@ test("spreadsheet-scoped key survives the custom-function user identity boundary
     harness.requests[0].options.headers.Authorization,
     /^Token test-key-not-a-secret$/,
   );
+  assert.equal(
+    harness.requests[0].options.headers["X-Api-Client"],
+    "oilpriceapi-google-sheets",
+  );
+  assert.equal(harness.requests[0].options.headers["X-Client-Version"], "1.3.1");
 });
 
 test("custom functions use a spreadsheet-scoped owner fallback when document properties are unavailable", () => {

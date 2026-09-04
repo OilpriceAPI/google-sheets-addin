@@ -10,14 +10,20 @@ test installation, screenshots, and submission require the publisher account.
 - Repository release candidate: `1.3.1`
 - Production Apps Script ID:
   `1rlVWvciYu-wzqnY009I3oW-08ZPazYK1snrrMg9NNY7c5WBSkUK8W2Hb`
-- Latest immutable Apps Script version: `12` (runtime `1.3.0`, created by
-  workflow run `31489545156` on 2026-08-11). Version 12 failed the subsequent
-  user-scoped cache-isolation review and was never published. The Marketplace
-  remains on version `11` (runtime `1.2.2`).
+- Latest immutable Apps Script version: `13` (runtime `1.3.1`, source commit
+  `a1b2f23dda0874368ef2a0dde0cdb8f21f781ef7`, created by workflow run
+  `33872286367` on 2026-09-04). Version 13 remains a release candidate and is
+  not selected in Marketplace pending the installed-add-on and two-spreadsheet
+  isolation smoke. Version 12
+  represented runtime `1.3.0`, failed the subsequent user-scoped
+  cache-isolation review, and was never published. The Marketplace remains on
+  version `11` (runtime `1.2.2`).
 - GitHub production release workflow:
   `https://github.com/OilpriceAPI/google-sheets-addin/actions/workflows/apps-script-release.yml`
   Note: versions 9-11 were cut locally with `npm run deploy:version`; version
-  12 was cut by the governed workflow above.
+  12 and 13 were cut by the governed workflow above.
+- GitHub prerelease receipt:
+  `https://github.com/OilpriceAPI/google-sheets-addin/releases/tag/v1.3.1`.
 - Marketplace status: **published** at
   `https://workspace.google.com/marketplace/app/oilpriceapi_for_google_sheets/991152473434`.
   The public listing points to immutable Apps Script version 11 (`1.2.2`).

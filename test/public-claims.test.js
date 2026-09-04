@@ -75,7 +75,15 @@ test("operator records preserve the exact release and Google submission state", 
   assert.match(deployment, /Repository release candidate: `1\.3\.1`/);
   assert.match(
     deployment,
-    /Latest immutable Apps Script version: `12` \(runtime `1\.3\.0`/,
+    /Latest immutable Apps Script version: `13` \(runtime `1\.3\.1`/,
+  );
+  assert.match(
+    deployment,
+    /a1b2f23dda0874368ef2a0dde0cdb8f21f781ef7[\s\S]{0,120}33872286367/,
+  );
+  assert.match(
+    deployment,
+    /releases\/tag\/v1\.3\.1/,
   );
   assert.match(
     listing,
@@ -83,6 +91,9 @@ test("operator records preserve the exact release and Google submission state", 
   );
   for (const record of [deployment, listing, oauth]) {
     assert.match(record, /version 12[\s\S]{0,240}never published/i);
+  }
+  for (const record of [deployment, listing]) {
+    assert.match(record, /version 13[\s\S]{0,420}(?:not selected|Do not select)/i);
   }
   assert.match(records, /publicly available/i);
   assert.match(

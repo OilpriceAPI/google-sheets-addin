@@ -63,14 +63,25 @@ Covered behavior includes:
 
 ## Dependency audit
 
-Command:
+Command (CI gate in every workflow):
 
 ```bash
-npm audit --audit-level=moderate
+npm run audit:ci
+# = npm audit --omit=dev --audit-level=moderate && npm audit --audit-level=critical
 ```
 
-Result on 2026-08-11: 0 vulnerabilities. The audit includes the development
-toolchain used to validate and publish the Apps Script package. `@google/clasp`
+Result on 2026-10-14: runtime dependencies, 0 vulnerabilities. Full tree
+including the development toolchain: 0 critical, 3 high, all one chain
+(`@google/clasp` -> `micromatch` -> `braces`, GHSA-vfj7-8cjw-p6xm). The
+advisory covers every published `braces` release (latest 3.0.3), so no
+upgrade or override clears it; npm's only suggestion is a breaking downgrade
+of `@google/clasp` to 2.5.0. `clasp` runs only on the release workstation and
+in CI, never in the shipped Apps Script. The gate therefore blocks any
+runtime advisory at moderate or above and any critical anywhere, and the
+development-tool highs are reviewed here. Re-check when `braces` publishes a
+fix, then return to a full-tree moderate gate.
+
+Earlier result, 2026-08-11: 0 vulnerabilities on the full tree. `@google/clasp`
 remains pinned to `3.3.0`; the lockfile override resolves its transitive `uuid`
 dependency to `11.1.1` without downgrading the release CLI.
 

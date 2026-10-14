@@ -5,6 +5,7 @@
   "description": "Google Sheets Editor add-on for source-aware OilPriceAPI formulas",
   "license": "MIT",
   "scripts": {
+    "audit:ci": "npm audit --omit=dev --audit-level=moderate && npm audit --audit-level=critical",
     "test": "node --test test/runtime.test.js test/public-claims.test.js test/secret-scan.test.js",
     "test:portfolio": "node --test test/portfolio.test.js",
     "test:portfolio:live": "node test/portfolio-live-smoke.js",

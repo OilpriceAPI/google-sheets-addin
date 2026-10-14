@@ -179,7 +179,7 @@ test("hosted workflows use hardened Node 24 release gates", () => {
       assert.equal(setup.with?.["node-version"], "24");
     }
     const auditIndex = gateSteps.findIndex(
-      (step) => step.run === "npm audit --audit-level=moderate",
+      (step) => step.run === "npm run audit:ci",
     );
     const validationIndex = gateSteps.findIndex(
       (step) => step.run === "npm run validate",
@@ -206,7 +206,13 @@ test("hosted workflows use hardened Node 24 release gates", () => {
   }
 
   const results = fs.readFileSync(path.join(ROOT, "TEST_RESULTS.md"), "utf8");
-  assert.match(results, /npm audit --audit-level=moderate/);
+  assert.match(results, /npm run audit:ci/);
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+  assert.equal(
+    pkg.scripts["audit:ci"],
+    "npm audit --omit=dev --audit-level=moderate && npm audit --audit-level=critical",
+  );
+  assert.match(results, /npm audit --omit=dev --audit-level=moderate && npm audit --audit-level=critical/);
   assert.match(results, /0 vulnerabilities/);
   assert.doesNotMatch(results, /reports moderate transitive[\s\S]{0,120}advisories/i);
 });
